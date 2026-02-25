@@ -10,7 +10,23 @@ class UserRepository
 {
     public function findByEmail(string $email): ?array
     {
-        $stmt = Db::conn()->prepare('SELECT * FROM users WHERE lower(email) = :email LIMIT 1');
+        $stmt = Db::conn()->prepare(
+            'SELECT
+                id,
+                name,
+                email,
+                password_hash,
+                CASE
+                    WHEN lower(role) IN ("admin", "superadmin") THEN "owner"
+                    ELSE lower(role)
+                END AS role,
+                is_active,
+                created_at,
+                updated_at
+             FROM users
+             WHERE lower(email) = :email
+             LIMIT 1'
+        );
         $stmt->execute([':email' => strtolower(trim($email))]);
         $row = $stmt->fetch();
 
@@ -19,7 +35,22 @@ class UserRepository
 
     public function findById(int $id): ?array
     {
-        $stmt = Db::conn()->prepare('SELECT id, name, email, role, is_active, created_at, updated_at FROM users WHERE id = :id LIMIT 1');
+        $stmt = Db::conn()->prepare(
+            'SELECT
+                id,
+                name,
+                email,
+                CASE
+                    WHEN lower(role) IN ("admin", "superadmin") THEN "owner"
+                    ELSE lower(role)
+                END AS role,
+                is_active,
+                created_at,
+                updated_at
+             FROM users
+             WHERE id = :id
+             LIMIT 1'
+        );
         $stmt->execute([':id' => $id]);
         $row = $stmt->fetch();
 
@@ -29,7 +60,17 @@ class UserRepository
     public function listUsers(): array
     {
         $stmt = Db::conn()->query(
-            'SELECT id, name, email, role, is_active, created_at, updated_at
+            'SELECT
+                id,
+                name,
+                email,
+                CASE
+                    WHEN lower(role) IN ("admin", "superadmin") THEN "owner"
+                    ELSE lower(role)
+                END AS role,
+                is_active,
+                created_at,
+                updated_at
              FROM users
              ORDER BY is_active DESC, role ASC, name ASC'
         );
