@@ -51,11 +51,19 @@ class AuthService
         return $this->users->findById($userId);
     }
 
-    public function requireAuth(): array
+    public function requireAuth(array $roles = []): array
     {
         $user = $this->currentUser();
         if (!$user || (int)$user['is_active'] !== 1) {
             throw new \RuntimeException('Authentication required.', 401);
+        }
+
+        if ($roles !== []) {
+            $normalizedRole = strtolower((string)($user['role'] ?? ''));
+            $allowed = array_map(static fn(string $role): string => strtolower($role), $roles);
+            if (!in_array($normalizedRole, $allowed, true)) {
+                throw new \RuntimeException('Forbidden.', 403);
+            }
         }
 
         return $user;

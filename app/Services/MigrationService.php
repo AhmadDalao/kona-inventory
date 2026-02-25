@@ -6,6 +6,7 @@ namespace App\Services;
 
 use App\Config;
 use App\Db;
+use App\Repositories\AppSettingsRepository;
 use PDO;
 
 class MigrationService
@@ -19,9 +20,12 @@ class MigrationService
         self::createItemsTable($conn);
         self::createInventoryLevelsTable($conn);
         self::createStockMovementsTable($conn);
+        self::createAppSettingsTable($conn);
+        self::createIndexes($conn);
 
         self::seedAdminUser($conn);
         self::seedStorageAreas($conn);
+        self::seedDefaultSettings();
     }
 
     private static function createUsersTable(PDO $conn): void
@@ -32,7 +36,7 @@ class MigrationService
                 name TEXT NOT NULL,
                 email TEXT NOT NULL UNIQUE,
                 password_hash TEXT NOT NULL,
-                role TEXT NOT NULL DEFAULT "admin",
+                role TEXT NOT NULL DEFAULT "owner",
                 is_active INTEGER NOT NULL DEFAULT 1,
                 created_at TEXT NOT NULL,
                 updated_at TEXT NOT NULL
@@ -110,6 +114,26 @@ class MigrationService
         );
     }
 
+    private static function createAppSettingsTable(PDO $conn): void
+    {
+        $conn->exec(
+            'CREATE TABLE IF NOT EXISTS app_settings (
+                setting_key TEXT PRIMARY KEY,
+                setting_value TEXT NOT NULL,
+                updated_at TEXT NOT NULL,
+                updated_by INTEGER,
+                FOREIGN KEY (updated_by) REFERENCES users(id) ON DELETE SET NULL
+            )'
+        );
+    }
+
+    private static function createIndexes(PDO $conn): void
+    {
+        $conn->exec('CREATE INDEX IF NOT EXISTS idx_stock_movements_item_created_at ON stock_movements(item_id, created_at)');
+        $conn->exec('CREATE INDEX IF NOT EXISTS idx_stock_movements_created_at ON stock_movements(created_at)');
+        $conn->exec('CREATE INDEX IF NOT EXISTS idx_inventory_levels_storage_area ON inventory_levels(storage_area_id)');
+    }
+
     private static function seedAdminUser(PDO $conn): void
     {
         $email = strtolower(trim((string)Config::get('APP_ADMIN_EMAIL', 'admin@inventory.local')));
@@ -133,7 +157,7 @@ class MigrationService
             ':name' => $name !== '' ? $name : 'Inventory Admin',
             ':email' => $email,
             ':password_hash' => password_hash($password, PASSWORD_DEFAULT),
-            ':role' => 'admin',
+            ':role' => 'owner',
             ':created_at' => $now,
             ':updated_at' => $now,
         ]);
@@ -167,5 +191,23 @@ class MigrationService
                 ':updated_at' => $now,
             ]);
         }
+    }
+
+    private static function seedDefaultSettings(): void
+    {
+        $settingsService = new SettingsService();
+        $repo = new AppSettingsRepository();
+
+        $existing = $repo->getAll();
+        $defaults = $settingsService->defaults();
+        $missing = [];
+
+        foreach ($defaults as $key => $value) {
+            if (!array_key_exists($key, $existing)) {
+                $missing[$key] = $value;
+            }
+        }
+
+        $repo->upsertMany($missing, null);
     }
 }

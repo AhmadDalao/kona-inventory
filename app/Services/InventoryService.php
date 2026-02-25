@@ -16,6 +16,7 @@ class InventoryService
     private ItemRepository $items;
     private StorageAreaRepository $areas;
     private StockMovementRepository $movements;
+    private SettingsService $settings;
 
     public function __construct()
     {
@@ -23,6 +24,7 @@ class InventoryService
         $this->items = new ItemRepository();
         $this->areas = new StorageAreaRepository();
         $this->movements = new StockMovementRepository();
+        $this->settings = new SettingsService();
     }
 
     public function applyMovement(array $payload, int $actorId): array
@@ -37,15 +39,18 @@ class InventoryService
             throw new \InvalidArgumentException('Valid item_id is required.');
         }
 
+        $settings = $this->settings->normalizeForResponse($this->settings->all());
+        $allowNegative = (bool)($settings['allow_negative_stock'] ?? false);
+
         $conn = Db::conn();
         $conn->beginTransaction();
 
         try {
             $result = match ($type) {
-                'receive' => $this->receive($itemId, $payload, $actorId),
-                'issue' => $this->issue($itemId, $payload, $actorId),
-                'adjust' => $this->adjust($itemId, $payload, $actorId),
-                'transfer' => $this->transfer($itemId, $payload, $actorId),
+                'receive' => $this->receive($itemId, $payload, $actorId, $allowNegative),
+                'issue' => $this->issue($itemId, $payload, $actorId, $allowNegative),
+                'adjust' => $this->adjust($itemId, $payload, $actorId, $allowNegative),
+                'transfer' => $this->transfer($itemId, $payload, $actorId, $allowNegative),
                 'set' => $this->setAbsolute($itemId, $payload, $actorId),
                 default => throw new \InvalidArgumentException('Unsupported movement type.'),
             };
@@ -60,13 +65,13 @@ class InventoryService
         }
     }
 
-    private function receive(int $itemId, array $payload, int $actorId): array
+    private function receive(int $itemId, array $payload, int $actorId, bool $allowNegative): array
     {
         $toArea = (int)($payload['to_storage_area_id'] ?? 0);
         $quantity = $this->positiveQuantity($payload['quantity'] ?? null);
         $this->assertAreaExists($toArea, 'to_storage_area_id');
 
-        $newQuantity = $this->inventory->adjustQuantity($itemId, $toArea, $quantity);
+        $newQuantity = $this->inventory->adjustQuantity($itemId, $toArea, $quantity, $allowNegative);
         $movement = $this->movements->create([
             'movement_type' => 'receive',
             'item_id' => $itemId,
@@ -85,13 +90,13 @@ class InventoryService
         ];
     }
 
-    private function issue(int $itemId, array $payload, int $actorId): array
+    private function issue(int $itemId, array $payload, int $actorId, bool $allowNegative): array
     {
         $fromArea = (int)($payload['from_storage_area_id'] ?? 0);
         $quantity = $this->positiveQuantity($payload['quantity'] ?? null);
         $this->assertAreaExists($fromArea, 'from_storage_area_id');
 
-        $newQuantity = $this->inventory->adjustQuantity($itemId, $fromArea, -$quantity);
+        $newQuantity = $this->inventory->adjustQuantity($itemId, $fromArea, -$quantity, $allowNegative);
         $movement = $this->movements->create([
             'movement_type' => 'issue',
             'item_id' => $itemId,
@@ -110,7 +115,7 @@ class InventoryService
         ];
     }
 
-    private function adjust(int $itemId, array $payload, int $actorId): array
+    private function adjust(int $itemId, array $payload, int $actorId, bool $allowNegative): array
     {
         $areaId = (int)($payload['to_storage_area_id'] ?? $payload['storage_area_id'] ?? 0);
         if ($areaId <= 0) {
@@ -120,7 +125,7 @@ class InventoryService
         $delta = $this->nonZeroQuantity($payload['quantity'] ?? null);
         $this->assertAreaExists($areaId, 'storage_area_id');
 
-        $newQuantity = $this->inventory->adjustQuantity($itemId, $areaId, $delta);
+        $newQuantity = $this->inventory->adjustQuantity($itemId, $areaId, $delta, $allowNegative);
         $movement = $this->movements->create([
             'movement_type' => 'adjust',
             'item_id' => $itemId,
@@ -139,7 +144,7 @@ class InventoryService
         ];
     }
 
-    private function transfer(int $itemId, array $payload, int $actorId): array
+    private function transfer(int $itemId, array $payload, int $actorId, bool $allowNegative): array
     {
         $fromArea = (int)($payload['from_storage_area_id'] ?? 0);
         $toArea = (int)($payload['to_storage_area_id'] ?? 0);
@@ -152,8 +157,8 @@ class InventoryService
             throw new \InvalidArgumentException('Transfer source and destination must be different.');
         }
 
-        $fromNew = $this->inventory->adjustQuantity($itemId, $fromArea, -$quantity);
-        $toNew = $this->inventory->adjustQuantity($itemId, $toArea, $quantity);
+        $fromNew = $this->inventory->adjustQuantity($itemId, $fromArea, -$quantity, $allowNegative);
+        $toNew = $this->inventory->adjustQuantity($itemId, $toArea, $quantity, $allowNegative);
 
         $movement = $this->movements->create([
             'movement_type' => 'transfer',

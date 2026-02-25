@@ -36,7 +36,15 @@ class InventoryController
     public function movements(Request $request): array
     {
         $limit = (int)$request->query('limit', 100);
-        return ['body' => ['data' => $this->movements->recent($limit)], 'status' => 200];
+        $filters = [
+            'movement_type' => (string)$request->query('movement_type', ''),
+            'item_id' => (int)$request->query('item_id', 0),
+            'search' => trim((string)$request->query('search', '')),
+            'date_from' => (string)$request->query('date_from', ''),
+            'date_to' => (string)$request->query('date_to', ''),
+        ];
+
+        return ['body' => ['data' => $this->movements->recent($limit, $filters)], 'status' => 200];
     }
 
     public function move(Request $request, array $actor): array

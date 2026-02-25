@@ -39,18 +39,18 @@ class InventoryRepository
         ]);
     }
 
-    public function adjustQuantity(int $itemId, int $storageAreaId, float $delta): float
+    public function adjustQuantity(int $itemId, int $storageAreaId, float $delta, bool $allowNegative = false): float
     {
         $current = $this->currentQuantity($itemId, $storageAreaId);
         $next = $current + $delta;
-        if ($next < -0.00001) {
+        if (!$allowNegative && $next < -0.00001) {
             throw new \RuntimeException('Insufficient stock for this operation.', 422);
         }
 
-        $safe = max(0, $next);
-        $this->upsertQuantity($itemId, $storageAreaId, $safe);
+        $safe = $allowNegative ? $next : max(0, $next);
+        $this->upsertQuantity($itemId, $storageAreaId, round($safe, 3));
 
-        return $safe;
+        return round($safe, 3);
     }
 
     public function matrix(?string $search = null, ?int $storageAreaId = null, bool $includeInactive = false): array
@@ -81,11 +81,14 @@ class InventoryRepository
                     i.category,
                     i.unit,
                     i.reorder_level,
+                    i.is_active AS item_is_active,
                     sa.id AS storage_area_id,
                     sa.code AS storage_area_code,
                     sa.name AS storage_area_name,
+                    sa.is_active AS storage_area_is_active,
                     COALESCE(il.quantity, 0) AS quantity,
-                    COALESCE(t.total_quantity, 0) AS total_item_quantity
+                    COALESCE(t.total_quantity, 0) AS total_item_quantity,
+                    COALESCE(il.updated_at, "") AS last_level_update
                 FROM items i
                 CROSS JOIN storage_areas sa
                 LEFT JOIN inventory_levels il

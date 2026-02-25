@@ -83,9 +83,40 @@ class StockMovementRepository
         return is_array($row) ? $row : null;
     }
 
-    public function recent(int $limit = 100): array
+    public function recent(int $limit = 100, array $filters = []): array
     {
         $safeLimit = max(1, min($limit, 500));
+
+        $conditions = [];
+        $params = [];
+
+        if (!empty($filters['movement_type'])) {
+            $conditions[] = 'sm.movement_type = :movement_type';
+            $params[':movement_type'] = strtolower((string)$filters['movement_type']);
+        }
+
+        if (!empty($filters['item_id']) && (int)$filters['item_id'] > 0) {
+            $conditions[] = 'sm.item_id = :item_id';
+            $params[':item_id'] = (int)$filters['item_id'];
+        }
+
+        if (!empty($filters['search'])) {
+            $conditions[] = '(i.name LIKE :search OR i.sku LIKE :search OR sm.reference LIKE :search OR sm.note LIKE :search OR from_sa.name LIKE :search OR to_sa.name LIKE :search)';
+            $params[':search'] = '%' . trim((string)$filters['search']) . '%';
+        }
+
+        if (!empty($filters['date_from'])) {
+            $conditions[] = 'date(sm.created_at) >= date(:date_from)';
+            $params[':date_from'] = (string)$filters['date_from'];
+        }
+
+        if (!empty($filters['date_to'])) {
+            $conditions[] = 'date(sm.created_at) <= date(:date_to)';
+            $params[':date_to'] = (string)$filters['date_to'];
+        }
+
+        $where = $conditions !== [] ? ('WHERE ' . implode(' AND ', $conditions)) : '';
+
         $stmt = Db::conn()->prepare(
             'SELECT
                 sm.id,
@@ -105,11 +136,16 @@ class StockMovementRepository
              LEFT JOIN storage_areas from_sa ON from_sa.id = sm.from_storage_area_id
              LEFT JOIN storage_areas to_sa ON to_sa.id = sm.to_storage_area_id
              LEFT JOIN users u ON u.id = sm.created_by
+             ' . $where . '
              ORDER BY sm.id DESC
              LIMIT :limit'
         );
 
+        foreach ($params as $key => $value) {
+            $stmt->bindValue($key, $value);
+        }
         $stmt->bindValue(':limit', $safeLimit, \PDO::PARAM_INT);
+
         $stmt->execute();
 
         return $stmt->fetchAll() ?: [];

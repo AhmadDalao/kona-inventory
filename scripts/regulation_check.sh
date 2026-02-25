@@ -18,28 +18,33 @@ cleanup() {
 }
 trap cleanup EXIT
 
-echo "[1/6] PHP lint"
+echo "[1/7] PHP lint"
 find . -name '*.php' -print0 | xargs -0 -n1 php -l >/dev/null
 
-echo "[2/6] Required files"
-for file in index.php public/index.php public/dashboard.html public/dashboard.js public/app.css .htaccess; do
+echo "[2/7] Required files"
+for file in index.php public/index.php public/dashboard.html public/dashboard.js public/app.css public/api-docs.html .htaccess; do
   [[ -f "$file" ]] || { echo "Missing required file: $file"; exit 1; }
 done
 
-echo "[3/6] Fresh DB and bootstrap"
+echo "[3/7] Fresh DB and bootstrap"
 php -r 'require "app/bootstrap.php"; echo "bootstrap-ok";' >/dev/null
 
-echo "[4/6] Start local server (root docroot simulation)"
+echo "[4/7] Start local server (root docroot simulation)"
 php -S 127.0.0.1:"$SERVER_PORT" -t . >/tmp/inventory_regulation_server.log 2>&1 &
 SERVER_PID="$!"
 sleep 1
 
-echo "[5/6] API smoke"
+echo "[5/7] API smoke"
 curl -fsS "http://127.0.0.1:${SERVER_PORT}/api/health" | rg -q '"status":"ok"'
+curl -fsS "http://127.0.0.1:${SERVER_PORT}/api/docs" | rg -q '"endpoints"'
 
 curl -fsS -c "$COOKIE_FILE" -X POST "http://127.0.0.1:${SERVER_PORT}/api/auth/login" \
   -H 'Content-Type: application/json' \
   -d '{"email":"admin@inventory.local","password":"ChangeMe123!"}' | rg -q '"user"'
+
+curl -fsS -b "$COOKIE_FILE" "http://127.0.0.1:${SERVER_PORT}/api/dashboard/analytics" | rg -q '"stock_by_area"'
+curl -fsS -b "$COOKIE_FILE" "http://127.0.0.1:${SERVER_PORT}/api/settings" | rg -q '"site_name"'
+curl -fsS -b "$COOKIE_FILE" "http://127.0.0.1:${SERVER_PORT}/api/admin/users" | rg -q '"email"'
 
 curl -fsS -b "$COOKIE_FILE" -X POST "http://127.0.0.1:${SERVER_PORT}/api/items" \
   -H 'Content-Type: application/json' \
@@ -49,9 +54,12 @@ curl -fsS -b "$COOKIE_FILE" -X POST "http://127.0.0.1:${SERVER_PORT}/api/invento
   -H 'Content-Type: application/json' \
   -d '{"movement_type":"receive","item_id":1,"to_storage_area_id":1,"quantity":4}' | rg -q '"updated_levels"'
 
-echo "[6/6] Frontend asset paths"
+echo "[6/7] Frontend asset paths"
 curl -fsS "http://127.0.0.1:${SERVER_PORT}/" | rg -q 'Inventory Management System'
 curl -fsS "http://127.0.0.1:${SERVER_PORT}/app.css" | rg -q ':root \{'
 curl -fsS "http://127.0.0.1:${SERVER_PORT}/dashboard.js" | rg -q 'const state ='
+
+echo "[7/7] Docs paths"
+curl -fsS "http://127.0.0.1:${SERVER_PORT}/api-docs" | rg -q 'InventoryManagementSystem API'
 
 echo "Regulation check passed."

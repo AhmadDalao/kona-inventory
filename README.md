@@ -1,67 +1,69 @@
 # Inventory Management System
 
-Internal-first inventory system for your company.
+Modern internal inventory platform with module-based dashboard, analytics, and admin controls.
 
-## What You Get
+## What Is Included
 
-- Quantity tracking per item and per storage area.
-- Multiple storage areas with full CRUD.
-- Item catalog with SKU, category, unit, reorder level, notes, active/inactive status.
-- Stock control actions:
-  - `receive`
-  - `issue`
-  - `transfer`
-  - `adjust` (+/-)
-  - `set` absolute quantity
-- Movement history with actor, reference, and note.
-- Dashboard summaries + low-stock alerts.
-- Session login (seeded admin user).
+- Sidebar-based dashboard with modules:
+  - Overview
+  - Inventory
+  - Movements
+  - Catalog
+  - Analytics
+  - Admin
+  - API Docs
+- Multi-storage area inventory tracking.
+- Item catalog with SKU/category/unit/reorder level.
+- Stock actions: `receive`, `issue`, `transfer`, `adjust`, `set`.
+- Movement ledger with search/type/date filters.
+- KPI + trend analytics (stock by area, category mix, top moved items, movement trend).
+- Role-based access:
+  - `owner`
+  - `manager`
+  - `viewer`
+- Admin controls:
+  - User management (owner)
+  - Site settings
+  - Read-only mode
+  - Negative stock policy toggle
+- API docs:
+  - JSON: `/api/docs`
+  - HTML: `/api-docs`
 
 ## Stack
 
 - PHP 8.1+
 - SQLite
-- No external dependencies
+- No framework dependencies
 
 ## Quick Start
 
-1. Copy env file:
+1. Create env file:
 
 ```bash
 cp .env.example .env
 ```
 
-2. Start server:
+2. Start local server:
 
 ```bash
-php -S 127.0.0.1:8000 -t public
+php -S 127.0.0.1:8000 -t .
 ```
 
 3. Open dashboard:
 
 - [http://127.0.0.1:8000](http://127.0.0.1:8000)
 
-4. Default login (change in `.env`):
+4. Login using `.env` admin credentials.
 
-- Email: `admin@inventory.local`
-- Password: `ChangeMe123!`
+## Local Quality Check
 
-## Key API Endpoints
+```bash
+./scripts/regulation_check.sh
+```
 
-- `GET /api/health`
-- `POST /api/auth/login`
-- `POST /api/auth/logout`
-- `GET /api/auth/me`
-- `GET /api/dashboard/summary`
-- `GET|POST /api/storage-areas`
-- `PATCH|DELETE /api/storage-areas/{id}`
-- `GET|POST /api/items`
-- `PATCH|DELETE /api/items/{id}`
-- `GET /api/inventory/levels`
-- `GET|POST /api/inventory/movements`
+## Documentation
 
-## Notes
-
-- Database is auto-created at `storage/inventory.sqlite` on first run.
-- Default storage areas are auto-seeded on first run.
-- Item deletion is blocked if movement history exists; mark items inactive instead.
+- [Docs Index](./docs/README.md)
+- [API Reference](./docs/api.md)
+- [Deployment Notes](./docs/deployment.md)
