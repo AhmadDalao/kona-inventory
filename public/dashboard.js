@@ -326,6 +326,87 @@ const THEME_PALETTES = {
 const byId = (id) => document.getElementById(id);
 
 const DEFAULT_ITEM_UNITS = ['unit', 'pcs', 'box', 'pack', 'set', 'roll', 'kg', 'g', 'l', 'ml'];
+const DEFAULT_TIMEZONE_OPTIONS = [
+  'UTC',
+  'America/New_York',
+  'America/Chicago',
+  'America/Denver',
+  'America/Los_Angeles',
+  'America/Phoenix',
+  'America/Anchorage',
+  'Pacific/Honolulu',
+  'Europe/London',
+  'Europe/Paris',
+  'Europe/Berlin',
+  'Europe/Madrid',
+  'Europe/Rome',
+  'Europe/Istanbul',
+  'Asia/Riyadh',
+  'Asia/Dubai',
+  'Asia/Karachi',
+  'Asia/Kolkata',
+  'Asia/Bangkok',
+  'Asia/Singapore',
+  'Asia/Tokyo',
+  'Asia/Seoul',
+  'Australia/Sydney',
+];
+const DEFAULT_CURRENCY_OPTIONS = [
+  { code: 'USD', label: 'US Dollar' },
+  { code: 'EUR', label: 'Euro' },
+  { code: 'GBP', label: 'British Pound' },
+  { code: 'SAR', label: 'Saudi Riyal' },
+  { code: 'AED', label: 'UAE Dirham' },
+  { code: 'QAR', label: 'Qatari Riyal' },
+  { code: 'KWD', label: 'Kuwaiti Dinar' },
+  { code: 'BHD', label: 'Bahraini Dinar' },
+  { code: 'OMR', label: 'Omani Rial' },
+  { code: 'JPY', label: 'Japanese Yen' },
+  { code: 'CNY', label: 'Chinese Yuan' },
+  { code: 'INR', label: 'Indian Rupee' },
+  { code: 'PKR', label: 'Pakistani Rupee' },
+  { code: 'TRY', label: 'Turkish Lira' },
+  { code: 'CAD', label: 'Canadian Dollar' },
+  { code: 'AUD', label: 'Australian Dollar' },
+  { code: 'CHF', label: 'Swiss Franc' },
+  { code: 'SEK', label: 'Swedish Krona' },
+  { code: 'NOK', label: 'Norwegian Krone' },
+  { code: 'DKK', label: 'Danish Krone' },
+  { code: 'NZD', label: 'New Zealand Dollar' },
+  { code: 'BRL', label: 'Brazilian Real' },
+  { code: 'MXN', label: 'Mexican Peso' },
+  { code: 'ZAR', label: 'South African Rand' },
+];
+
+function populateSettingsSelects() {
+  const timezoneSelect = byId('set-timezone');
+  const currencySelect = byId('set-default-currency');
+  if (!timezoneSelect || !currencySelect) {
+    return;
+  }
+
+  const timezoneCurrent = String(state.settings.timezone || 'America/New_York').trim() || 'America/New_York';
+  const timezoneOptions = [...DEFAULT_TIMEZONE_OPTIONS];
+  if (!timezoneOptions.includes(timezoneCurrent)) {
+    timezoneOptions.unshift(timezoneCurrent);
+  }
+
+  timezoneSelect.innerHTML = timezoneOptions
+    .map((timezone) => `<option value="${escapeHtml(timezone)}">${escapeHtml(timezone)}</option>`)
+    .join('');
+  timezoneSelect.value = timezoneCurrent;
+
+  const currencyCurrent = String(state.settings.default_currency || 'USD').trim().toUpperCase() || 'USD';
+  const currencyOptions = [...DEFAULT_CURRENCY_OPTIONS];
+  if (!currencyOptions.some((row) => row.code === currencyCurrent)) {
+    currencyOptions.unshift({ code: currencyCurrent, label: 'Saved value' });
+  }
+
+  currencySelect.innerHTML = currencyOptions
+    .map((currency) => `<option value="${escapeHtml(currency.code)}">${escapeHtml(currency.code)} - ${escapeHtml(currency.label)}</option>`)
+    .join('');
+  currencySelect.value = currencyCurrent;
+}
 
 function normalizeUnitToken(value) {
   const text = String(value ?? '').trim().toLowerCase().replace(/\s+/g, ' ');
@@ -1681,11 +1762,12 @@ async function loadMeta() {
 }
 
 function hydrateSettingsForm() {
+  populateSettingsSelects();
   byId('set-company-name').value = state.settings.company_name || state.settings.site_name || '';
   byId('set-site-name').value = state.settings.site_name || '';
   byId('set-site-tagline').value = state.settings.site_tagline || '';
   byId('set-timezone').value = state.settings.timezone || 'America/New_York';
-  byId('set-default-currency').value = state.settings.default_currency || 'USD';
+  byId('set-default-currency').value = String(state.settings.default_currency || 'USD').toUpperCase();
   if (byId('set-item-units')) {
     byId('set-item-units').value = normalizeItemUnits(state.settings.item_units, false).join(', ');
   }
@@ -3712,8 +3794,8 @@ async function onSaveSettings(event) {
     company_name: byId('set-company-name').value.trim(),
     site_name: byId('set-site-name').value.trim(),
     site_tagline: byId('set-site-tagline').value.trim(),
-    timezone: byId('set-timezone').value.trim(),
-    default_currency: byId('set-default-currency').value.trim(),
+    timezone: byId('set-timezone').value || 'America/New_York',
+    default_currency: String(byId('set-default-currency').value || 'USD').trim().toUpperCase(),
     item_units: unitPresets.length ? unitPresets : [...DEFAULT_ITEM_UNITS],
     dashboard_low_stock_limit: Number(byId('set-low-stock-limit').value || 25),
     table_page_size: Number(byId('set-table-page-size').value || 25),
