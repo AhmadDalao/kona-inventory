@@ -21,17 +21,17 @@
 
       <form id="login-form" class="form-grid">
         <label>
-          Email
+          <span id="login-email-label">Email</span>
           <input type="email" id="login-email" required autocomplete="username" />
         </label>
         <label>
-          Password
+          <span id="login-password-label">Password</span>
           <input type="password" id="login-password" required autocomplete="current-password" />
         </label>
-        <button class="btn primary" type="submit">Sign In</button>
+        <button class="btn primary" type="submit"><span id="login-submit-label">Sign In</span></button>
       </form>
 
-      <p class="hint">Use your company credentials.</p>
+      <p class="hint" id="login-hint-text">Use your company credentials.</p>
     </section>
   </main>
 
@@ -46,25 +46,25 @@
       </div>
 
       <div class="sidebar-group">
-        <p class="group-label">Main Menu</p>
+        <p class="group-label" id="nav-main-menu-label">Main Menu</p>
         <nav class="nav" id="main-nav">
-          <button class="nav-btn active" data-view="overview" id="nav-overview"><i class="fa-solid fa-house"></i><span>Overview</span></button>
-          <button class="nav-btn" data-view="inventory" id="nav-inventory"><i class="fa-solid fa-boxes-stacked"></i><span>Inventory</span></button>
-          <button class="nav-btn" data-view="movements" id="nav-movements"><i class="fa-solid fa-arrows-rotate"></i><span>Movements</span></button>
-          <button class="nav-btn" data-view="areas" id="nav-areas"><i class="fa-solid fa-warehouse"></i><span>Storage Areas</span></button>
-          <button class="nav-btn" data-view="items" id="nav-items"><i class="fa-solid fa-box-open"></i><span>Items</span></button>
-          <button class="nav-btn" data-view="analytics" id="nav-analytics"><i class="fa-solid fa-chart-line"></i><span>Analytics</span></button>
+          <button class="nav-btn active" data-view="overview" id="nav-overview"><i class="fa-solid fa-house"></i><span id="nav-overview-label">Overview</span></button>
+          <button class="nav-btn" data-view="inventory" id="nav-inventory"><i class="fa-solid fa-boxes-stacked"></i><span id="nav-inventory-label">Inventory</span></button>
+          <button class="nav-btn" data-view="movements" id="nav-movements"><i class="fa-solid fa-arrows-rotate"></i><span id="nav-movements-label">Movements</span></button>
+          <button class="nav-btn" data-view="areas" id="nav-areas"><i class="fa-solid fa-warehouse"></i><span id="nav-areas-label">Storage Areas</span></button>
+          <button class="nav-btn" data-view="items" id="nav-items"><i class="fa-solid fa-box-open"></i><span id="nav-items-label">Items</span></button>
+          <button class="nav-btn" data-view="analytics" id="nav-analytics"><i class="fa-solid fa-chart-line"></i><span id="nav-analytics-label">Analytics</span></button>
         </nav>
       </div>
 
       <div class="sidebar-group">
-        <p class="group-label">Control</p>
+        <p class="group-label" id="nav-control-label">Control</p>
         <nav class="nav">
-          <button class="nav-btn" data-view="admin" id="nav-admin"><i class="fa-solid fa-user-shield"></i><span>Admins</span></button>
-          <button class="nav-btn" data-view="trash" id="nav-trash"><i class="fa-solid fa-trash-can"></i><span>Trash</span></button>
-          <button class="nav-btn" data-view="audit" id="nav-audit"><i class="fa-solid fa-fingerprint"></i><span>Audit Log</span></button>
-          <button class="nav-btn" data-view="settings" id="nav-settings"><i class="fa-solid fa-sliders"></i><span>Settings</span></button>
-          <button class="nav-btn" data-view="docs" id="nav-docs"><i class="fa-solid fa-book-open"></i><span>Docs</span></button>
+          <button class="nav-btn" data-view="admin" id="nav-admin"><i class="fa-solid fa-user-shield"></i><span id="nav-admin-label">Admins</span></button>
+          <button class="nav-btn" data-view="trash" id="nav-trash"><i class="fa-solid fa-trash-can"></i><span id="nav-trash-label">Trash</span></button>
+          <button class="nav-btn" data-view="audit" id="nav-audit"><i class="fa-solid fa-fingerprint"></i><span id="nav-audit-label">Audit Log</span></button>
+          <button class="nav-btn" data-view="settings" id="nav-settings"><i class="fa-solid fa-sliders"></i><span id="nav-settings-label">Settings</span></button>
+          <button class="nav-btn" data-view="docs" id="nav-docs"><i class="fa-solid fa-book-open"></i><span id="nav-docs-label">Docs</span></button>
         </nav>
       </div>
 
@@ -73,7 +73,7 @@
           <i class="fa-solid fa-user"></i>
           <p id="user-badge">-</p>
         </div>
-        <button id="logout-btn" class="btn ghost" type="button">Logout</button>
+        <button id="logout-btn" class="btn ghost" type="button"><span id="logout-label">Logout</span></button>
       </div>
     </aside>
 
@@ -87,8 +87,8 @@
           </label>
         </div>
         <div class="head-right">
-          <button id="head-refresh" class="btn ghost" type="button"><i class="fa-solid fa-rotate-right"></i> Refresh</button>
-          <a class="btn ghost" href="/api-docs" target="_blank" rel="noreferrer"><i class="fa-solid fa-code"></i> API</a>
+          <button id="head-refresh" class="btn ghost" type="button"><i class="fa-solid fa-rotate-right"></i> <span id="head-refresh-label">Refresh</span></button>
+          <a class="btn ghost" href="/api-docs" target="_blank" rel="noreferrer"><i class="fa-solid fa-code"></i> <span id="head-api-label">API</span></a>
           <span class="badge" id="read-only-badge">Read-only mode is ON</span>
           <span class="badge" id="site-open-badge">Site Open</span>
           <span class="badge" id="time-badge"></span>
@@ -551,6 +551,7 @@
               </div>
             </article>
           </div>
+
         </section>
 
         <section class="view" data-view-panel="audit">
@@ -694,6 +695,35 @@
               </ul>
             </article>
           </div>
+
+          <section class="card collapsible-card" id="ui-text-card">
+            <div class="card-head">
+              <div>
+                <h3 id="ui-texts-title">Text & Labels</h3>
+                <p class="hint" id="ui-texts-subtitle">Edit dashboard titles and labels.</p>
+              </div>
+              <div class="inline-controls">
+                <label class="input-inline">
+                  <i class="fa-solid fa-magnifying-glass"></i>
+                  <input id="ui-text-search" placeholder="Search labels..." />
+                </label>
+                <button
+                  id="ui-text-toggle"
+                  type="button"
+                  class="btn ghost collapse-toggle"
+                  aria-expanded="true"
+                  aria-controls="ui-text-body"
+                  data-collapse-text="Collapse"
+                  data-expand-text="Expand">
+                  <i class="fa-solid fa-chevron-up icon"></i>
+                  <span id="ui-text-toggle-label">Collapse</span>
+                </button>
+              </div>
+            </div>
+            <div id="ui-text-body" class="collapsible-body">
+              <div id="ui-text-groups" class="text-groups"></div>
+            </div>
+          </section>
         </section>
 
         <section class="view" data-view-panel="docs">

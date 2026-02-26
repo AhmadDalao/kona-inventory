@@ -38,6 +38,7 @@ class SettingsService
             'dashboard_low_stock_limit' => '25',
             'table_page_size' => '25',
             'allow_negative_stock' => '0',
+            'ui_texts' => json_encode($this->defaultUiTexts(), JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE),
         ];
     }
 
@@ -84,6 +85,7 @@ class SettingsService
             'dashboard_low_stock_limit' => max(1, (int)($settings['dashboard_low_stock_limit'] ?? 25)),
             'table_page_size' => max(10, min(100, (int)($settings['table_page_size'] ?? 25))),
             'allow_negative_stock' => $this->toBool($settings['allow_negative_stock'] ?? '0'),
+            'ui_texts' => $this->normalizeUiTexts($settings['ui_texts'] ?? null),
         ];
     }
 
@@ -216,6 +218,38 @@ class SettingsService
             $normalized['allow_negative_stock'] = !empty($payload['allow_negative_stock']) ? '1' : '0';
         }
 
+        if (array_key_exists('ui_texts', $payload)) {
+            if (!is_array($payload['ui_texts'])) {
+                throw new \InvalidArgumentException('ui_texts must be an object map.');
+            }
+
+            $updatedTexts = $this->normalizeUiTexts($this->all()['ui_texts'] ?? null);
+
+            foreach ($payload['ui_texts'] as $key => $value) {
+                if (!is_string($key) || !array_key_exists($key, $updatedTexts)) {
+                    continue;
+                }
+
+                if (!(is_scalar($value) || $value === null)) {
+                    throw new \InvalidArgumentException(sprintf('ui_texts.%s must be a string value.', $key));
+                }
+
+                $text = trim((string)$value);
+                if (strlen($text) > 180) {
+                    throw new \InvalidArgumentException(sprintf('ui_texts.%s must be 180 chars or less.', $key));
+                }
+
+                $updatedTexts[$key] = $text;
+            }
+
+            $encodedTexts = json_encode($updatedTexts, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
+            if (!is_string($encodedTexts)) {
+                throw new \InvalidArgumentException('ui_texts could not be serialized.');
+            }
+
+            $normalized['ui_texts'] = $encodedTexts;
+        }
+
         if ($normalized === []) {
             throw new \InvalidArgumentException('No valid settings keys were provided.');
         }
@@ -229,6 +263,114 @@ class SettingsService
         }
 
         return $normalized;
+    }
+
+    private function defaultUiTexts(): array
+    {
+        return [
+            'page.title' => 'Inventory Management System',
+            'login.title' => 'Inventory Management System',
+            'login.subtitle' => 'Track inventory, movements, controls, and admin actions in one place.',
+            'login.email' => 'Email',
+            'login.password' => 'Password',
+            'login.signin' => 'Sign In',
+            'login.hint' => 'Use your company credentials.',
+            'nav.main_menu' => 'Main Menu',
+            'nav.control' => 'Control',
+            'nav.overview' => 'Overview',
+            'nav.inventory' => 'Inventory',
+            'nav.movements' => 'Movements',
+            'nav.areas' => 'Storage Areas',
+            'nav.items' => 'Items',
+            'nav.analytics' => 'Analytics',
+            'nav.admin' => 'Admins',
+            'nav.trash' => 'Trash',
+            'nav.audit' => 'Audit Log',
+            'nav.settings' => 'Settings',
+            'nav.docs' => 'Docs',
+            'actions.logout' => 'Logout',
+            'topbar.search_placeholder' => 'Search current view',
+            'topbar.refresh' => 'Refresh',
+            'topbar.api' => 'API',
+            'badge.read_only_on' => 'Read-only mode is ON',
+            'badge.site_open' => 'Site Open',
+            'badge.site_closed' => 'Site Closed',
+            'settings.texts' => 'Text & Labels',
+            'settings.texts_sub' => 'Edit dashboard titles and labels.',
+            'settings.texts_search' => 'Search labels...',
+            'settings.texts_collapse' => 'Collapse',
+            'settings.texts_expand' => 'Expand',
+            'settings.texts_page' => 'Page',
+            'settings.texts_login' => 'Login',
+            'settings.texts_navigation' => 'Navigation',
+            'settings.texts_topbar' => 'Top Bar',
+            'settings.texts_badges' => 'Badges',
+            'settings.texts_views' => 'Views',
+            'view.overview.title' => 'Overview',
+            'view.overview.subtitle' => 'Snapshot of stock, risk, and movement activity.',
+            'view.overview.search' => 'Search inventory records',
+            'view.inventory.title' => 'Inventory',
+            'view.inventory.subtitle' => 'Live quantity matrix across storage areas.',
+            'view.inventory.search' => 'Search product, SKU, category, area',
+            'view.movements.title' => 'Movements',
+            'view.movements.subtitle' => 'Apply stock changes and monitor movement history.',
+            'view.movements.search' => 'Search movement notes, references, items',
+            'view.areas.title' => 'Storage Areas',
+            'view.areas.subtitle' => 'Define, update, and manage warehouse zones.',
+            'view.areas.search' => 'Use filters inside this page',
+            'view.items.title' => 'Item Catalog',
+            'view.items.subtitle' => 'Manage product SKUs, categories, units, and reorder levels.',
+            'view.items.search' => 'Use filters inside this page',
+            'view.analytics.title' => 'Analytics',
+            'view.analytics.subtitle' => 'Movement and inventory trend analysis.',
+            'view.analytics.search' => 'Use filters inside this page',
+            'view.admin.title' => 'Admins',
+            'view.admin.subtitle' => 'Manage admin accounts.',
+            'view.admin.search' => 'Search admin users',
+            'view.trash.title' => 'Trash',
+            'view.trash.subtitle' => 'Review deleted records and restore them.',
+            'view.trash.search' => 'Search deleted records',
+            'view.audit.title' => 'Audit Log',
+            'view.audit.subtitle' => 'Owner-level write action log and traceability.',
+            'view.audit.search' => 'Search audit actor, action, summary',
+            'view.settings.title' => 'Settings',
+            'view.settings.subtitle' => 'System behavior and dashboard defaults.',
+            'view.settings.search' => 'Use filters inside this page',
+            'view.docs.title' => 'Docs',
+            'view.docs.subtitle' => 'Internal API endpoint reference.',
+            'view.docs.search' => 'Search API endpoints in docs table',
+        ];
+    }
+
+    private function normalizeUiTexts(mixed $value): array
+    {
+        $defaults = $this->defaultUiTexts();
+        $incoming = [];
+
+        if (is_array($value)) {
+            $incoming = $value;
+        } elseif (is_string($value)) {
+            $trimmed = trim($value);
+            if ($trimmed !== '') {
+                $decoded = json_decode($trimmed, true);
+                if (is_array($decoded)) {
+                    $incoming = $decoded;
+                }
+            }
+        }
+
+        foreach ($defaults as $key => $fallback) {
+            if (!array_key_exists($key, $incoming)) {
+                continue;
+            }
+
+            $candidate = $incoming[$key];
+            if (is_scalar($candidate) || $candidate === null) {
+                $defaults[$key] = trim((string)$candidate);
+            }
+        }
+
+        return $defaults;
     }
 
     private function toBool(string|int|bool|null $value): bool

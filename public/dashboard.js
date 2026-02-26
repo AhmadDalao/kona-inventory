@@ -1,6 +1,7 @@
 const state = {
   user: null,
   settings: {},
+  uiTexts: {},
   capabilities: {},
   areas: [],
   items: [],
@@ -41,60 +42,255 @@ const editorModalState = {
 const viewMeta = {
   overview: {
     title: 'Overview',
+    titleKey: 'view.overview.title',
     subtitle: 'Snapshot of stock, risk, and movement activity.',
+    subtitleKey: 'view.overview.subtitle',
     searchPlaceholder: 'Search inventory records',
+    searchKey: 'view.overview.search',
   },
   inventory: {
     title: 'Inventory',
+    titleKey: 'view.inventory.title',
     subtitle: 'Live quantity matrix across storage areas.',
+    subtitleKey: 'view.inventory.subtitle',
     searchPlaceholder: 'Search product, SKU, category, area',
+    searchKey: 'view.inventory.search',
   },
   movements: {
     title: 'Movements',
+    titleKey: 'view.movements.title',
     subtitle: 'Apply stock changes and monitor movement history.',
+    subtitleKey: 'view.movements.subtitle',
     searchPlaceholder: 'Search movement notes, references, items',
+    searchKey: 'view.movements.search',
   },
   areas: {
     title: 'Storage Areas',
+    titleKey: 'view.areas.title',
     subtitle: 'Define, update, and manage warehouse zones.',
+    subtitleKey: 'view.areas.subtitle',
     searchPlaceholder: 'Use filters inside this page',
+    searchKey: 'view.areas.search',
   },
   items: {
     title: 'Item Catalog',
+    titleKey: 'view.items.title',
     subtitle: 'Manage product SKUs, categories, units, and reorder levels.',
+    subtitleKey: 'view.items.subtitle',
     searchPlaceholder: 'Use filters inside this page',
+    searchKey: 'view.items.search',
   },
   analytics: {
     title: 'Analytics',
+    titleKey: 'view.analytics.title',
     subtitle: 'Movement and inventory trend analysis.',
+    subtitleKey: 'view.analytics.subtitle',
     searchPlaceholder: 'Use filters inside this page',
+    searchKey: 'view.analytics.search',
   },
   admin: {
     title: 'Admins',
+    titleKey: 'view.admin.title',
     subtitle: 'Manage admin accounts.',
+    subtitleKey: 'view.admin.subtitle',
     searchPlaceholder: 'Search admin users',
+    searchKey: 'view.admin.search',
   },
   trash: {
     title: 'Trash',
+    titleKey: 'view.trash.title',
     subtitle: 'Review deleted records and restore them.',
+    subtitleKey: 'view.trash.subtitle',
     searchPlaceholder: 'Search deleted records',
+    searchKey: 'view.trash.search',
   },
   audit: {
     title: 'Audit Log',
+    titleKey: 'view.audit.title',
     subtitle: 'Owner-level write action log and traceability.',
+    subtitleKey: 'view.audit.subtitle',
     searchPlaceholder: 'Search audit actor, action, summary',
+    searchKey: 'view.audit.search',
   },
   settings: {
     title: 'Settings',
+    titleKey: 'view.settings.title',
     subtitle: 'System behavior and dashboard defaults.',
+    subtitleKey: 'view.settings.subtitle',
     searchPlaceholder: 'Use filters inside this page',
+    searchKey: 'view.settings.search',
   },
   docs: {
     title: 'Docs',
+    titleKey: 'view.docs.title',
     subtitle: 'Internal API endpoint reference.',
+    subtitleKey: 'view.docs.subtitle',
     searchPlaceholder: 'Search API endpoints in docs table',
+    searchKey: 'view.docs.search',
   },
 };
+
+const DEFAULT_UI_TEXTS = {
+  'page.title': 'Inventory Management System',
+  'login.title': 'Inventory Management System',
+  'login.subtitle': 'Track inventory, movements, controls, and admin actions in one place.',
+  'login.email': 'Email',
+  'login.password': 'Password',
+  'login.signin': 'Sign In',
+  'login.hint': 'Use your company credentials.',
+  'nav.main_menu': 'Main Menu',
+  'nav.control': 'Control',
+  'nav.overview': 'Overview',
+  'nav.inventory': 'Inventory',
+  'nav.movements': 'Movements',
+  'nav.areas': 'Storage Areas',
+  'nav.items': 'Items',
+  'nav.analytics': 'Analytics',
+  'nav.admin': 'Admins',
+  'nav.trash': 'Trash',
+  'nav.audit': 'Audit Log',
+  'nav.settings': 'Settings',
+  'nav.docs': 'Docs',
+  'actions.logout': 'Logout',
+  'topbar.search_placeholder': 'Search current view',
+  'topbar.refresh': 'Refresh',
+  'topbar.api': 'API',
+  'badge.read_only_on': 'Read-only mode is ON',
+  'badge.site_open': 'Site Open',
+  'badge.site_closed': 'Site Closed',
+  'settings.texts': 'Text & Labels',
+  'settings.texts_sub': 'Edit dashboard titles and labels.',
+  'settings.texts_search': 'Search labels...',
+  'settings.texts_collapse': 'Collapse',
+  'settings.texts_expand': 'Expand',
+  'settings.texts_page': 'Page',
+  'settings.texts_login': 'Login',
+  'settings.texts_navigation': 'Navigation',
+  'settings.texts_topbar': 'Top Bar',
+  'settings.texts_badges': 'Badges',
+  'settings.texts_views': 'Views',
+  'view.overview.title': 'Overview',
+  'view.overview.subtitle': 'Snapshot of stock, risk, and movement activity.',
+  'view.overview.search': 'Search inventory records',
+  'view.inventory.title': 'Inventory',
+  'view.inventory.subtitle': 'Live quantity matrix across storage areas.',
+  'view.inventory.search': 'Search product, SKU, category, area',
+  'view.movements.title': 'Movements',
+  'view.movements.subtitle': 'Apply stock changes and monitor movement history.',
+  'view.movements.search': 'Search movement notes, references, items',
+  'view.areas.title': 'Storage Areas',
+  'view.areas.subtitle': 'Define, update, and manage warehouse zones.',
+  'view.areas.search': 'Use filters inside this page',
+  'view.items.title': 'Item Catalog',
+  'view.items.subtitle': 'Manage product SKUs, categories, units, and reorder levels.',
+  'view.items.search': 'Use filters inside this page',
+  'view.analytics.title': 'Analytics',
+  'view.analytics.subtitle': 'Movement and inventory trend analysis.',
+  'view.analytics.search': 'Use filters inside this page',
+  'view.admin.title': 'Admins',
+  'view.admin.subtitle': 'Manage admin accounts.',
+  'view.admin.search': 'Search admin users',
+  'view.trash.title': 'Trash',
+  'view.trash.subtitle': 'Review deleted records and restore them.',
+  'view.trash.search': 'Search deleted records',
+  'view.audit.title': 'Audit Log',
+  'view.audit.subtitle': 'Owner-level write action log and traceability.',
+  'view.audit.search': 'Search audit actor, action, summary',
+  'view.settings.title': 'Settings',
+  'view.settings.subtitle': 'System behavior and dashboard defaults.',
+  'view.settings.search': 'Use filters inside this page',
+  'view.docs.title': 'Docs',
+  'view.docs.subtitle': 'Internal API endpoint reference.',
+  'view.docs.search': 'Search API endpoints in docs table',
+};
+
+const UI_TEXT_EDITOR_GROUPS = [
+  {
+    titleKey: 'settings.texts_page',
+    fallback: 'Page',
+    fields: [
+      { key: 'page.title', label: 'Page Title' },
+    ],
+  },
+  {
+    titleKey: 'settings.texts_login',
+    fallback: 'Login',
+    fields: [
+      { key: 'login.title', label: 'Login Title' },
+      { key: 'login.subtitle', label: 'Login Subtitle' },
+      { key: 'login.email', label: 'Login Email' },
+      { key: 'login.password', label: 'Login Password' },
+      { key: 'login.signin', label: 'Login Sign In' },
+      { key: 'login.hint', label: 'Login Hint' },
+    ],
+  },
+  {
+    titleKey: 'settings.texts_navigation',
+    fallback: 'Navigation',
+    fields: [
+      { key: 'nav.main_menu', label: 'Nav Main Menu' },
+      { key: 'nav.control', label: 'Nav Control' },
+      { key: 'nav.overview', label: 'Nav Overview' },
+      { key: 'nav.inventory', label: 'Nav Inventory' },
+      { key: 'nav.movements', label: 'Nav Movements' },
+      { key: 'nav.areas', label: 'Nav Storage Areas' },
+      { key: 'nav.items', label: 'Nav Items' },
+      { key: 'nav.analytics', label: 'Nav Analytics' },
+      { key: 'nav.admin', label: 'Nav Admins' },
+      { key: 'nav.trash', label: 'Nav Trash' },
+      { key: 'nav.audit', label: 'Nav Audit Log' },
+      { key: 'nav.settings', label: 'Nav Settings' },
+      { key: 'nav.docs', label: 'Nav Docs' },
+      { key: 'actions.logout', label: 'Logout Button' },
+    ],
+  },
+  {
+    titleKey: 'settings.texts_topbar',
+    fallback: 'Top Bar',
+    fields: [
+      { key: 'topbar.search_placeholder', label: 'Topbar Search Placeholder' },
+      { key: 'topbar.refresh', label: 'Topbar Refresh' },
+      { key: 'topbar.api', label: 'Topbar API' },
+    ],
+  },
+  {
+    titleKey: 'settings.texts_badges',
+    fallback: 'Badges',
+    fields: [
+      { key: 'badge.read_only_on', label: 'Read-only Badge' },
+      { key: 'badge.site_open', label: 'Site Open Badge' },
+      { key: 'badge.site_closed', label: 'Site Closed Badge' },
+    ],
+  },
+  {
+    titleKey: 'settings.texts_views',
+    fallback: 'Views',
+    fields: [
+      { key: 'view.overview.title', label: 'Overview Title' },
+      { key: 'view.overview.subtitle', label: 'Overview Subtitle' },
+      { key: 'view.inventory.title', label: 'Inventory Title' },
+      { key: 'view.inventory.subtitle', label: 'Inventory Subtitle' },
+      { key: 'view.movements.title', label: 'Movements Title' },
+      { key: 'view.movements.subtitle', label: 'Movements Subtitle' },
+      { key: 'view.areas.title', label: 'Areas Title' },
+      { key: 'view.areas.subtitle', label: 'Areas Subtitle' },
+      { key: 'view.items.title', label: 'Items Title' },
+      { key: 'view.items.subtitle', label: 'Items Subtitle' },
+      { key: 'view.analytics.title', label: 'Analytics Title' },
+      { key: 'view.analytics.subtitle', label: 'Analytics Subtitle' },
+      { key: 'view.admin.title', label: 'Admin Title' },
+      { key: 'view.admin.subtitle', label: 'Admin Subtitle' },
+      { key: 'view.trash.title', label: 'Trash Title' },
+      { key: 'view.trash.subtitle', label: 'Trash Subtitle' },
+      { key: 'view.audit.title', label: 'Audit Title' },
+      { key: 'view.audit.subtitle', label: 'Audit Subtitle' },
+      { key: 'view.settings.title', label: 'Settings Title' },
+      { key: 'view.settings.subtitle', label: 'Settings Subtitle' },
+      { key: 'view.docs.title', label: 'Docs Title' },
+      { key: 'view.docs.subtitle', label: 'Docs Subtitle' },
+    ],
+  },
+];
 
 const THEME_PALETTES = {
   'material-indigo': {
@@ -128,6 +324,221 @@ const THEME_PALETTES = {
 };
 
 const byId = (id) => document.getElementById(id);
+
+function normalizeUiTexts(source) {
+  const normalized = { ...DEFAULT_UI_TEXTS };
+  let incoming = {};
+
+  if (source && typeof source === 'object' && !Array.isArray(source)) {
+    incoming = source;
+  } else if (typeof source === 'string' && source.trim() !== '') {
+    try {
+      const parsed = JSON.parse(source);
+      if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+        incoming = parsed;
+      }
+    } catch {
+      incoming = {};
+    }
+  }
+
+  for (const key of Object.keys(normalized)) {
+    if (typeof incoming[key] === 'string') {
+      normalized[key] = incoming[key];
+    }
+  }
+
+  return normalized;
+}
+
+function uiText(key, fallback = '') {
+  const current = state.uiTexts?.[key];
+  if (typeof current === 'string' && current.trim() !== '') {
+    return current.trim();
+  }
+  if (typeof fallback === 'string' && fallback.trim() !== '') {
+    return fallback;
+  }
+  const defaultValue = DEFAULT_UI_TEXTS[key];
+  return typeof defaultValue === 'string' ? defaultValue : '';
+}
+
+function setElementText(id, value) {
+  const el = byId(id);
+  if (el) {
+    el.textContent = value;
+  }
+}
+
+function setElementPlaceholder(id, value) {
+  const el = byId(id);
+  if (el) {
+    el.placeholder = value;
+  }
+}
+
+function renderUiTextEditor() {
+  const container = byId('ui-text-groups');
+  if (!container) {
+    return;
+  }
+
+  container.innerHTML = UI_TEXT_EDITOR_GROUPS.map((group) => {
+    const title = uiText(group.titleKey, group.fallback);
+    const fields = (group.fields || []).map((field) => `
+      <div class="text-item" data-text-key="${escapeHtml(String(field.key || '').toLowerCase())}">
+        <label>
+          <span class="text-label">${escapeHtml(field.label || field.key || '')}</span>
+          <span class="text-key">${escapeHtml(field.key || '')}</span>
+        </label>
+        <input type="text" data-ui-text="${escapeHtml(field.key || '')}" />
+      </div>
+    `).join('');
+
+    return `
+      <details class="text-group" open>
+        <summary>${escapeHtml(title)}</summary>
+        <div class="text-grid">${fields}</div>
+      </details>
+    `;
+  }).join('');
+
+  hydrateUiTextInputs();
+}
+
+function hydrateUiTextInputs() {
+  document.querySelectorAll('[data-ui-text]').forEach((input) => {
+    const key = input.dataset.uiText;
+    if (!key) {
+      return;
+    }
+    input.value = state.uiTexts?.[key] ?? DEFAULT_UI_TEXTS[key] ?? '';
+  });
+}
+
+function collectUiTextInputs() {
+  const next = normalizeUiTexts(state.settings.ui_texts);
+  document.querySelectorAll('[data-ui-text]').forEach((input) => {
+    const key = input.dataset.uiText;
+    if (!key || !Object.prototype.hasOwnProperty.call(DEFAULT_UI_TEXTS, key)) {
+      return;
+    }
+    next[key] = String(input.value || '').trim();
+  });
+  return next;
+}
+
+function syncUiTextCollapseState() {
+  const card = byId('ui-text-card');
+  const toggle = byId('ui-text-toggle');
+  const label = byId('ui-text-toggle-label');
+  if (!card || !toggle || !label) {
+    return;
+  }
+
+  const collapsed = card.classList.contains('collapsed');
+  toggle.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
+  label.textContent = collapsed
+    ? (toggle.dataset.expandText || 'Expand')
+    : (toggle.dataset.collapseText || 'Collapse');
+}
+
+function applyUiTextSearch(term) {
+  const normalized = String(term || '').trim().toLowerCase();
+  document.querySelectorAll('.text-item').forEach((item) => {
+    const key = String(item.dataset.textKey || '').toLowerCase();
+    const label = String(item.querySelector('.text-label')?.textContent || '').toLowerCase();
+    const matched = !normalized || key.includes(normalized) || label.includes(normalized);
+    item.classList.toggle('hidden', !matched);
+  });
+
+  document.querySelectorAll('.text-group').forEach((group) => {
+    const hasVisible = Array.from(group.querySelectorAll('.text-item'))
+      .some((item) => !item.classList.contains('hidden'));
+    group.style.display = hasVisible ? '' : 'none';
+  });
+}
+
+function applyUiTexts() {
+  state.uiTexts = normalizeUiTexts(state.settings.ui_texts);
+
+  document.title = uiText('page.title', state.settings.site_name || 'Inventory Management System');
+  setElementText('auth-site-name', uiText('login.title', state.settings.site_name || 'Inventory Management System'));
+  setElementText('auth-site-tagline', uiText('login.subtitle', state.settings.site_tagline || 'Track inventory, movements, controls, and admin actions in one place.'));
+  setElementText('login-email-label', uiText('login.email', 'Email'));
+  setElementText('login-password-label', uiText('login.password', 'Password'));
+  setElementText('login-submit-label', uiText('login.signin', 'Sign In'));
+  setElementText('login-hint-text', uiText('login.hint', 'Use your company credentials.'));
+
+  setElementText('nav-main-menu-label', uiText('nav.main_menu', 'Main Menu'));
+  setElementText('nav-control-label', uiText('nav.control', 'Control'));
+  setElementText('nav-overview-label', uiText('nav.overview', 'Overview'));
+  setElementText('nav-inventory-label', uiText('nav.inventory', 'Inventory'));
+  setElementText('nav-movements-label', uiText('nav.movements', 'Movements'));
+  setElementText('nav-areas-label', uiText('nav.areas', 'Storage Areas'));
+  setElementText('nav-items-label', uiText('nav.items', 'Items'));
+  setElementText('nav-analytics-label', uiText('nav.analytics', 'Analytics'));
+  setElementText('nav-admin-label', uiText('nav.admin', 'Admins'));
+  setElementText('nav-trash-label', uiText('nav.trash', 'Trash'));
+  setElementText('nav-audit-label', uiText('nav.audit', 'Audit Log'));
+  setElementText('nav-settings-label', uiText('nav.settings', 'Settings'));
+  setElementText('nav-docs-label', uiText('nav.docs', 'Docs'));
+  setElementText('logout-label', uiText('actions.logout', 'Logout'));
+
+  setElementText('head-refresh-label', uiText('topbar.refresh', 'Refresh'));
+  setElementText('head-api-label', uiText('topbar.api', 'API'));
+  setElementText('read-only-badge', uiText('badge.read_only_on', 'Read-only mode is ON'));
+
+  setElementText('ui-texts-title', uiText('settings.texts', 'Text & Labels'));
+  setElementText('ui-texts-subtitle', uiText('settings.texts_sub', 'Edit dashboard titles and labels.'));
+  setElementPlaceholder('ui-text-search', uiText('settings.texts_search', 'Search labels...'));
+
+  const toggle = byId('ui-text-toggle');
+  if (toggle) {
+    toggle.dataset.collapseText = uiText('settings.texts_collapse', 'Collapse');
+    toggle.dataset.expandText = uiText('settings.texts_expand', 'Expand');
+  }
+
+  renderUiTextEditor();
+  syncUiTextCollapseState();
+
+  const activeMeta = viewMeta[state.view] || viewMeta.overview;
+  setElementText('view-title', uiText(activeMeta.titleKey, activeMeta.title));
+  setElementText('view-subtitle', uiText(activeMeta.subtitleKey, activeMeta.subtitle));
+  setElementPlaceholder(
+    'global-search',
+    uiText(activeMeta.searchKey, uiText('topbar.search_placeholder', activeMeta.searchPlaceholder))
+  );
+}
+
+function initUiTextEditor() {
+  const search = byId('ui-text-search');
+  const toggle = byId('ui-text-toggle');
+  const card = byId('ui-text-card');
+  if (!search || !toggle || !card) {
+    return;
+  }
+
+  search.addEventListener('input', () => applyUiTextSearch(search.value));
+
+  const storageKey = 'inventory.uiTextCollapsed';
+  const saved = localStorage.getItem(storageKey);
+  if (saved === '1') {
+    card.classList.add('collapsed');
+  } else if (saved === '0') {
+    card.classList.remove('collapsed');
+  } else {
+    card.classList.add('collapsed');
+    localStorage.setItem(storageKey, '1');
+  }
+  syncUiTextCollapseState();
+
+  toggle.addEventListener('click', () => {
+    card.classList.toggle('collapsed');
+    localStorage.setItem(storageKey, card.classList.contains('collapsed') ? '1' : '0');
+    syncUiTextCollapseState();
+  });
+}
 
 async function api(path, options = {}) {
   const config = {
@@ -564,8 +975,12 @@ function showAuth(isLoggedIn) {
 }
 
 function setAuthBrandDefaults() {
-  byId('auth-site-name').textContent = 'Inventory Management System';
-  byId('auth-site-tagline').textContent = 'Track inventory, movements, controls, and admin actions in one place.';
+  state.settings = {
+    ...(state.settings || {}),
+    site_name: state.settings.site_name || 'Inventory Management System',
+    site_tagline: state.settings.site_tagline || 'Track inventory, movements, controls, and admin actions in one place.',
+  };
+  applyUiTexts();
 }
 
 function setView(view) {
@@ -573,9 +988,9 @@ function setView(view) {
   state.view = allowedView;
 
   const meta = viewMeta[allowedView] || viewMeta.overview;
-  byId('view-title').textContent = meta.title;
-  byId('view-subtitle').textContent = meta.subtitle;
-  byId('global-search').placeholder = meta.searchPlaceholder;
+  byId('view-title').textContent = uiText(meta.titleKey, meta.title);
+  byId('view-subtitle').textContent = uiText(meta.subtitleKey, meta.subtitle);
+  byId('global-search').placeholder = uiText(meta.searchKey, meta.searchPlaceholder);
 
   document.querySelectorAll('.nav-btn[data-view]').forEach((button) => {
     button.classList.toggle('active', button.dataset.view === allowedView);
@@ -788,10 +1203,10 @@ function applyPermissionsUI() {
   const openBadge = byId('site-open-badge');
   openBadge.classList.remove('good', 'bad', 'warn');
   if (state.settings.site_open) {
-    openBadge.textContent = 'Site Open';
+    openBadge.textContent = uiText('badge.site_open', 'Site Open');
     openBadge.classList.add('good');
   } else {
-    openBadge.textContent = 'Site Closed';
+    openBadge.textContent = uiText('badge.site_closed', 'Site Closed');
     openBadge.classList.add('bad');
   }
 
@@ -1046,6 +1461,7 @@ function wireEvents() {
 async function boot() {
   initModal();
   initEditorModal();
+  initUiTextEditor();
   wireEvents();
   updateClock();
   setInterval(updateClock, 1000);
@@ -1150,8 +1566,7 @@ async function loadMeta() {
 
   byId('site-name').textContent = siteName;
   byId('site-tagline').textContent = siteTagline;
-  byId('auth-site-name').textContent = siteName;
-  byId('auth-site-tagline').textContent = siteTagline;
+  applyUiTexts();
   applyThemeSettings();
 
   const pageSize = Number(state.settings.table_page_size || 25);
@@ -1189,6 +1604,7 @@ function hydrateSettingsForm() {
   byId('set-notify-email').checked = !!state.settings.notify_email;
   byId('set-notify-inapp').checked = !!state.settings.notify_inapp;
   byId('set-notify-whatsapp').checked = !!state.settings.notify_whatsapp;
+  hydrateUiTextInputs();
   syncThemePreview();
 }
 
@@ -2786,6 +3202,7 @@ async function onSaveSettings(event) {
     notify_email: byId('set-notify-email').checked,
     notify_inapp: byId('set-notify-inapp').checked,
     notify_whatsapp: byId('set-notify-whatsapp').checked,
+    ui_texts: collectUiTextInputs(),
   };
 
   try {
@@ -2795,6 +3212,9 @@ async function onSaveSettings(event) {
     });
 
     state.settings = response.data || state.settings;
+    byId('site-name').textContent = state.settings.site_name || state.settings.company_name || 'Inventory Management System';
+    byId('site-tagline').textContent = state.settings.site_tagline || 'Track inventory, movements, controls, and admin actions in one place.';
+    applyUiTexts();
     hydrateSettingsForm();
     applyThemeSettings();
     applyPermissionsUI();

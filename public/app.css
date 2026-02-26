@@ -579,6 +579,69 @@ body.sidebar-collapsed .nav-btn {
   align-items: center;
 }
 
+.collapsible-card .collapse-toggle {
+  gap: 6px;
+  white-space: nowrap;
+}
+
+.collapsible-card .collapse-toggle .icon {
+  transition: transform 0.2s ease;
+}
+
+.collapsible-card.collapsed .collapsible-body {
+  display: none;
+}
+
+.collapsible-card.collapsed .collapse-toggle .icon {
+  transform: rotate(180deg);
+}
+
+.text-groups {
+  display: grid;
+  gap: 12px;
+  margin-top: 2px;
+}
+
+.text-group {
+  border: 1px solid var(--line-2);
+  border-radius: 12px;
+  padding: 12px;
+  background: var(--panel);
+}
+
+.text-group summary {
+  cursor: pointer;
+  font-weight: 700;
+  color: #344054;
+}
+
+.text-grid {
+  margin-top: 12px;
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+}
+
+.text-item {
+  display: grid;
+  gap: 6px;
+}
+
+.text-item.hidden {
+  display: none;
+}
+
+.text-item .text-label {
+  font-size: 12px;
+  font-weight: 700;
+  color: #3f516f;
+}
+
+.text-item .text-key {
+  font-size: 11px;
+  color: var(--muted);
+}
+
 .admin-hero {
   display: flex;
   justify-content: space-between;
