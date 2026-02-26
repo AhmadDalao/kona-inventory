@@ -51,9 +51,14 @@ const viewMeta = {
     subtitle: 'Apply stock changes and monitor movement history.',
     searchPlaceholder: 'Search movement notes, references, items',
   },
-  catalog: {
-    title: 'Catalog',
-    subtitle: 'Manage storage areas and products.',
+  areas: {
+    title: 'Storage Areas',
+    subtitle: 'Define, update, and manage warehouse zones.',
+    searchPlaceholder: 'Use filters inside this page',
+  },
+  items: {
+    title: 'Items',
+    subtitle: 'Manage product SKUs, categories, and reorder levels.',
     searchPlaceholder: 'Use filters inside this page',
   },
   analytics: {
@@ -367,13 +372,14 @@ function setView(view) {
 }
 
 function ensureAllowedView(view) {
-  const allowed = new Set(['overview', 'inventory', 'movements', 'catalog', 'analytics', 'docs']);
+  const legacyView = view === 'catalog' ? 'areas' : view;
+  const allowed = new Set(['overview', 'inventory', 'movements', 'areas', 'items', 'analytics', 'docs']);
   if (canManageAdmin()) allowed.add('admin');
   if (canViewTrash()) allowed.add('trash');
   if (canViewAudit()) allowed.add('audit');
   if (canManageSettings()) allowed.add('settings');
 
-  return allowed.has(view) ? view : 'overview';
+  return allowed.has(legacyView) ? legacyView : 'overview';
 }
 
 function updateClock() {
@@ -1524,7 +1530,7 @@ function renderAreas() {
       byId('area-name').value = area.name;
       byId('area-description').value = area.description || '';
       byId('area-active').checked = Number(area.is_active) === 1;
-      setView('catalog');
+      setView('areas');
     });
   });
 
@@ -1609,7 +1615,7 @@ function renderItems() {
       byId('item-reorder').value = item.reorder_level || 0;
       byId('item-notes').value = item.notes || '';
       byId('item-active').checked = Number(item.is_active) === 1;
-      setView('catalog');
+      setView('items');
     });
   });
 
@@ -2584,7 +2590,7 @@ async function refreshViewData(view, force = false) {
     return;
   }
 
-  if (view === 'catalog') {
+  if (view === 'areas' || view === 'items') {
     await loadMeta();
     return;
   }
