@@ -122,4 +122,50 @@ class TrashRepository
 
         return $stmt->rowCount() > 0;
     }
+
+    public function hardDeleteItem(int $id): bool
+    {
+        $existing = Db::conn()->prepare(
+            'SELECT id
+             FROM items
+             WHERE id = :id
+               AND deleted_at IS NOT NULL
+             LIMIT 1'
+        );
+        $existing->execute([':id' => $id]);
+        if (!$existing->fetch()) {
+            return false;
+        }
+
+        $movementCount = Db::conn()->prepare(
+            'SELECT COUNT(*) AS total
+             FROM stock_movements
+             WHERE item_id = :id'
+        );
+        $movementCount->execute([':id' => $id]);
+        if ((int)$movementCount->fetchColumn() > 0) {
+            throw new \RuntimeException('Item has movement history and cannot be permanently deleted. Keep it in trash for audit traceability.', 422);
+        }
+
+        $stmt = Db::conn()->prepare(
+            'DELETE FROM items
+             WHERE id = :id
+               AND deleted_at IS NOT NULL'
+        );
+        $stmt->execute([':id' => $id]);
+
+        return $stmt->rowCount() > 0;
+    }
+
+    public function hardDeleteStorageArea(int $id): bool
+    {
+        $stmt = Db::conn()->prepare(
+            'DELETE FROM storage_areas
+             WHERE id = :id
+               AND deleted_at IS NOT NULL'
+        );
+        $stmt->execute([':id' => $id]);
+
+        return $stmt->rowCount() > 0;
+    }
 }

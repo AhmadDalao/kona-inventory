@@ -193,6 +193,14 @@ $router->post('/api/trash/{entity}/{id}/restore', $secure(
     'trash',
     'Restored record from trash'
 ));
+$router->delete('/api/trash/{entity}/{id}', $secure(
+    fn(Request $r, array $p) => $trash->destroy($r, $p),
+    $ownerOnly,
+    true,
+    'trash.delete',
+    'trash',
+    'Permanently deleted record from trash'
+));
 
 $router->get('/api/audit-logs', $secure(fn(Request $r) => $auditLogs->index($r), $ownerOnly));
 

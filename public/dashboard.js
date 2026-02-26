@@ -750,6 +750,14 @@ function canViewAudit() {
   return !!state.capabilities.can_view_audit;
 }
 
+function isOwner() {
+  return String(state.user?.role || '').toLowerCase() === 'owner';
+}
+
+function canPurgeTrash() {
+  return canWrite() && isOwner();
+}
+
 function applyPermissionsUI() {
   const writeEnabled = canWrite();
   const settingsEnabled = canManageSettings() && writeEnabled;
@@ -2206,7 +2214,12 @@ function renderTrash() {
         <td>${escapeHtml(row.category || '-')}</td>
         <td>${escapeHtml(row.deleted_by_name || row.deleted_by_email || '-')}</td>
         <td>${escapeHtml(formatDate(row.deleted_at))}</td>
-        <td><button class="btn ghost table-btn action-restore" data-restore-item="${row.id}" ${canWrite() ? '' : 'disabled'}>Restore</button></td>
+        <td>
+          <div class="actions">
+            <button class="btn ghost table-btn action-restore" data-restore-item="${row.id}" ${canWrite() ? '' : 'disabled'}>Restore</button>
+            <button class="btn danger table-btn action-delete" data-delete-item="${row.id}" ${canPurgeTrash() ? '' : 'disabled'} title="${canPurgeTrash() ? 'Permanently delete' : 'Owner only'}">Delete</button>
+          </div>
+        </td>
       `;
       itemsBody.appendChild(tr);
     }
@@ -2225,7 +2238,12 @@ function renderTrash() {
         <td>${escapeHtml(row.name)}</td>
         <td>${escapeHtml(row.deleted_by_name || row.deleted_by_email || '-')}</td>
         <td>${escapeHtml(formatDate(row.deleted_at))}</td>
-        <td><button class="btn ghost table-btn action-restore" data-restore-area="${row.id}" ${canWrite() ? '' : 'disabled'}>Restore</button></td>
+        <td>
+          <div class="actions">
+            <button class="btn ghost table-btn action-restore" data-restore-area="${row.id}" ${canWrite() ? '' : 'disabled'}>Restore</button>
+            <button class="btn danger table-btn action-delete" data-delete-area="${row.id}" ${canPurgeTrash() ? '' : 'disabled'} title="${canPurgeTrash() ? 'Permanently delete' : 'Owner only'}">Delete</button>
+          </div>
+        </td>
       `;
       areasBody.appendChild(tr);
     }
@@ -2234,9 +2252,15 @@ function renderTrash() {
   itemsBody.querySelectorAll('[data-restore-item]').forEach((button) => {
     button.addEventListener('click', () => restoreFromTrash('items', Number(button.dataset.restoreItem)));
   });
+  itemsBody.querySelectorAll('[data-delete-item]').forEach((button) => {
+    button.addEventListener('click', () => permanentlyDeleteFromTrash('items', Number(button.dataset.deleteItem)));
+  });
 
   areasBody.querySelectorAll('[data-restore-area]').forEach((button) => {
     button.addEventListener('click', () => restoreFromTrash('storage_areas', Number(button.dataset.restoreArea)));
+  });
+  areasBody.querySelectorAll('[data-delete-area]').forEach((button) => {
+    button.addEventListener('click', () => permanentlyDeleteFromTrash('storage_areas', Number(button.dataset.deleteArea)));
   });
 }
 
@@ -2264,6 +2288,38 @@ async function restoreFromTrash(entity, id) {
       await loadAudit();
     }
     toast('Record restored.');
+  } catch (error) {
+    toast(error.message, true);
+  }
+}
+
+async function permanentlyDeleteFromTrash(entity, id) {
+  if (!canPurgeTrash()) {
+    toast('Only owner can permanently delete records from trash.', true);
+    return;
+  }
+
+  const label = entity === 'items' ? 'item' : 'storage area';
+  const confirmed = await openConfirmModal({
+    title: `Permanently Delete ${label === 'item' ? 'Item' : 'Storage Area'}?`,
+    message: `This will permanently delete the ${label} from trash.`,
+    warning: 'Warning: this cannot be undone.',
+    confirmLabel: 'Delete Permanently',
+    danger: true,
+  });
+
+  if (!confirmed) {
+    return;
+  }
+
+  try {
+    await api(`/api/trash/${entity}/${id}`, { method: 'DELETE' });
+    await reloadMasterData();
+    await loadTrash();
+    if (canViewAudit()) {
+      await loadAudit();
+    }
+    toast('Record permanently deleted.');
   } catch (error) {
     toast(error.message, true);
   }

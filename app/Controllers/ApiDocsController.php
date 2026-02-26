@@ -28,6 +28,7 @@ class ApiDocsController
                     ['method' => 'PATCH', 'path' => '/api/settings', 'description' => 'Update site/theme/notification settings'],
                     ['method' => 'GET', 'path' => '/api/trash', 'description' => 'List deleted records (items and storage areas)'],
                     ['method' => 'POST', 'path' => '/api/trash/{entity}/{id}/restore', 'description' => 'Restore deleted record from trash'],
+                    ['method' => 'DELETE', 'path' => '/api/trash/{entity}/{id}', 'description' => 'Owner-only permanent delete of trashed record'],
                     ['method' => 'GET', 'path' => '/api/audit-logs', 'description' => 'Owner-only audit trail of write actions'],
                     ['method' => 'GET', 'path' => '/api/admin/users', 'description' => 'List admin users'],
                     ['method' => 'POST', 'path' => '/api/admin/users', 'description' => 'Create admin user'],
