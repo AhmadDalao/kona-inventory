@@ -241,8 +241,21 @@
                   <option value="adjust">Adjust</option>
                   <option value="set">Set</option>
                 </select>
-                <input id="movements-date-from" type="date" />
-                <input id="movements-date-to" type="date" />
+                <select id="movements-range-filter">
+                  <option value="today">Today</option>
+                  <option value="this_month" selected>This Month</option>
+                  <option value="last_month">Last Month</option>
+                  <option value="custom">Custom</option>
+                  <option value="all">All Time</option>
+                </select>
+                <label id="movements-custom-start-wrap" class="range-custom hidden">
+                  <span>From</span>
+                  <input id="movements-date-from" type="date" />
+                </label>
+                <label id="movements-custom-end-wrap" class="range-custom hidden">
+                  <span>To</span>
+                  <input id="movements-date-to" type="date" />
+                </label>
                 <select id="movements-page-size">
                   <option value="20">20</option>
                   <option value="50" selected>50</option>
@@ -251,6 +264,7 @@
                 <button class="btn ghost" id="movements-refresh" type="button">Refresh</button>
               </div>
             </div>
+            <p id="movements-range-label" class="hint range-label">Period: This Month</p>
 
             <div class="table-wrap tall">
               <table>
@@ -507,8 +521,21 @@
                   <option value="settings">Settings</option>
                   <option value="trash">Trash</option>
                 </select>
-                <input id="audit-date-from" type="date" />
-                <input id="audit-date-to" type="date" />
+                <select id="audit-range-filter">
+                  <option value="today">Today</option>
+                  <option value="this_month" selected>This Month</option>
+                  <option value="last_month">Last Month</option>
+                  <option value="custom">Custom</option>
+                  <option value="all">All Time</option>
+                </select>
+                <label id="audit-custom-start-wrap" class="range-custom hidden">
+                  <span>From</span>
+                  <input id="audit-date-from" type="date" />
+                </label>
+                <label id="audit-custom-end-wrap" class="range-custom hidden">
+                  <span>To</span>
+                  <input id="audit-date-to" type="date" />
+                </label>
                 <select id="audit-limit">
                   <option value="50">50</option>
                   <option value="100" selected>100</option>
@@ -517,6 +544,7 @@
                 <button class="btn ghost" id="audit-refresh" type="button">Refresh</button>
               </div>
             </div>
+            <p id="audit-range-label" class="hint range-label">Period: This Month</p>
 
             <div class="table-wrap tall">
               <table>

@@ -378,6 +378,104 @@ function updateClock() {
   byId('time-badge').textContent = new Date().toLocaleString();
 }
 
+function formatDateRangeLabel(rangeKey, startYmd = '', endYmd = '') {
+  const labels = {
+    today: 'Today',
+    this_month: 'This Month',
+    last_month: 'Last Month',
+    custom: 'Custom',
+    all: 'All Time',
+  };
+
+  if (rangeKey !== 'custom') {
+    return labels[rangeKey] || 'All Time';
+  }
+
+  const startText = startYmd ? formatYmd(startYmd) : '';
+  const endText = endYmd ? formatYmd(endYmd) : '';
+  if (startText && endText) {
+    return startText === endText ? startText : `${startText} - ${endText}`;
+  }
+  if (startText) {
+    return `From ${startText}`;
+  }
+  if (endText) {
+    return `Until ${endText}`;
+  }
+
+  return labels.custom;
+}
+
+function buildDateRangeBounds(rangeKey, customStart = '', customEnd = '') {
+  const now = new Date();
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const toYmd = (date) => {
+    const y = date.getFullYear();
+    const m = String(date.getMonth() + 1).padStart(2, '0');
+    const d = String(date.getDate()).padStart(2, '0');
+    return `${y}-${m}-${d}`;
+  };
+
+  let start = '';
+  let end = '';
+
+  if (rangeKey === 'today') {
+    start = toYmd(today);
+    end = toYmd(today);
+  } else if (rangeKey === 'this_month') {
+    const monthStart = new Date(today.getFullYear(), today.getMonth(), 1);
+    const monthEnd = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+    start = toYmd(monthStart);
+    end = toYmd(monthEnd);
+  } else if (rangeKey === 'last_month') {
+    const monthStart = new Date(today.getFullYear(), today.getMonth() - 1, 1);
+    const monthEnd = new Date(today.getFullYear(), today.getMonth(), 0);
+    start = toYmd(monthStart);
+    end = toYmd(monthEnd);
+  } else if (rangeKey === 'custom') {
+    const validYmd = /^\d{4}-\d{2}-\d{2}$/;
+    start = validYmd.test(customStart) ? customStart : '';
+    end = validYmd.test(customEnd) ? customEnd : '';
+  }
+
+  return {
+    start,
+    end,
+    label: formatDateRangeLabel(rangeKey, start, end),
+  };
+}
+
+function applyRangeUI(prefix) {
+  const rangeEl = byId(`${prefix}-range-filter`);
+  const startWrap = byId(`${prefix}-custom-start-wrap`);
+  const endWrap = byId(`${prefix}-custom-end-wrap`);
+  const startInput = byId(`${prefix}-date-from`);
+  const endInput = byId(`${prefix}-date-to`);
+  const labelEl = byId(`${prefix}-range-label`);
+
+  if (!rangeEl) {
+    return { start: '', end: '', label: 'All Time' };
+  }
+
+  const range = String(rangeEl.value || 'all');
+  const isCustom = range === 'custom';
+  if (startWrap) {
+    startWrap.classList.toggle('hidden', !isCustom);
+  }
+  if (endWrap) {
+    endWrap.classList.toggle('hidden', !isCustom);
+  }
+
+  const startValue = startInput ? String(startInput.value || '') : '';
+  const endValue = endInput ? String(endInput.value || '') : '';
+  const bounds = buildDateRangeBounds(range, startValue, endValue);
+  if (labelEl) {
+    labelEl.textContent = `Period: ${bounds.label}`;
+  }
+
+  return bounds;
+}
+
 function canWrite() {
   if (!state.capabilities.can_write_inventory) {
     return false;
@@ -568,8 +666,19 @@ function wireEvents() {
     loadMovements();
   }, 300));
   byId('movements-type-filter').addEventListener('change', loadMovements);
-  byId('movements-date-from').addEventListener('change', loadMovements);
-  byId('movements-date-to').addEventListener('change', loadMovements);
+  byId('movements-range-filter').addEventListener('change', () => {
+    state.tables.movements.page = 1;
+    applyRangeUI('movements');
+    loadMovements();
+  });
+  byId('movements-date-from').addEventListener('change', () => {
+    applyRangeUI('movements');
+    loadMovements();
+  });
+  byId('movements-date-to').addEventListener('change', () => {
+    applyRangeUI('movements');
+    loadMovements();
+  });
   byId('movements-page-size').addEventListener('change', () => {
     state.tables.movements.page = 1;
     state.tables.movements.pageSize = Number(byId('movements-page-size').value || 50);
@@ -593,9 +702,23 @@ function wireEvents() {
     loadAudit();
   }, 250));
   byId('audit-entity-filter').addEventListener('change', loadAudit);
-  byId('audit-date-from').addEventListener('change', loadAudit);
-  byId('audit-date-to').addEventListener('change', loadAudit);
+  byId('audit-range-filter').addEventListener('change', () => {
+    state.tables.audit.page = 1;
+    applyRangeUI('audit');
+    loadAudit();
+  });
+  byId('audit-date-from').addEventListener('change', () => {
+    applyRangeUI('audit');
+    loadAudit();
+  });
+  byId('audit-date-to').addEventListener('change', () => {
+    applyRangeUI('audit');
+    loadAudit();
+  });
   byId('audit-limit').addEventListener('change', loadAudit);
+
+  applyRangeUI('movements');
+  applyRangeUI('audit');
 
   bindSortHandlers();
 }
@@ -831,13 +954,12 @@ async function loadMovements() {
   const params = new URLSearchParams();
   const search = byId('movements-search').value.trim();
   const type = byId('movements-type-filter').value;
-  const dateFrom = byId('movements-date-from').value;
-  const dateTo = byId('movements-date-to').value;
+  const bounds = applyRangeUI('movements');
 
   if (search) params.set('search', search);
   if (type) params.set('movement_type', type);
-  if (dateFrom) params.set('date_from', dateFrom);
-  if (dateTo) params.set('date_to', dateTo);
+  if (bounds.start) params.set('date_from', bounds.start);
+  if (bounds.end) params.set('date_to', bounds.end);
   params.set('limit', '500');
 
   const payload = await api(`/api/inventory/movements?${params.toString()}`);
@@ -899,14 +1021,13 @@ async function loadAudit() {
   const params = new URLSearchParams();
   const search = byId('audit-search').value.trim();
   const entity = byId('audit-entity-filter').value;
-  const dateFrom = byId('audit-date-from').value;
-  const dateTo = byId('audit-date-to').value;
+  const bounds = applyRangeUI('audit');
   const limit = byId('audit-limit').value;
 
   if (search) params.set('search', search);
   if (entity) params.set('entity_type', entity);
-  if (dateFrom) params.set('date_from', dateFrom);
-  if (dateTo) params.set('date_to', dateTo);
+  if (bounds.start) params.set('date_from', bounds.start);
+  if (bounds.end) params.set('date_to', bounds.end);
   if (limit) params.set('limit', limit);
 
   const suffix = params.toString() ? `?${params.toString()}` : '';
@@ -1216,8 +1337,8 @@ function renderAreas() {
       <td><span class="status-pill ${active ? 'in' : 'out'}">${active ? 'Active' : 'Inactive'}</span></td>
       <td>
         <div class="actions">
-          <button class="btn ghost table-btn" data-area-edit="${area.id}" ${canWrite() ? '' : 'disabled'}>Edit</button>
-          <button class="btn danger table-btn" data-area-del="${area.id}" ${canWrite() ? '' : 'disabled'}>Trash</button>
+          <button class="btn ghost table-btn action-edit" data-area-edit="${area.id}" ${canWrite() ? '' : 'disabled'}>Edit</button>
+          <button class="btn danger table-btn action-delete" data-area-del="${area.id}" ${canWrite() ? '' : 'disabled'}>Trash</button>
         </div>
       </td>
     `;
@@ -1298,8 +1419,8 @@ function renderItems() {
       <td><span class="status-pill ${active ? 'in' : 'out'}">${active ? 'Active' : 'Inactive'}</span></td>
       <td>
         <div class="actions">
-          <button class="btn ghost table-btn" data-item-edit="${item.id}" ${canWrite() ? '' : 'disabled'}>Edit</button>
-          <button class="btn danger table-btn" data-item-del="${item.id}" ${canWrite() ? '' : 'disabled'}>Trash</button>
+          <button class="btn ghost table-btn action-edit" data-item-edit="${item.id}" ${canWrite() ? '' : 'disabled'}>Edit</button>
+          <button class="btn danger table-btn action-delete" data-item-del="${item.id}" ${canWrite() ? '' : 'disabled'}>Trash</button>
         </div>
       </td>
     `;
@@ -1417,7 +1538,7 @@ function renderLevels() {
       <td>${formatNumber(row.quantity)}</td>
       <td class="${status.key === 'low' ? 'low' : ''}">${formatNumber(row.total_item_quantity)}</td>
       <td><span class="status-pill ${status.key}">${status.label}</span></td>
-      <td><button class="btn ghost table-btn" data-set-level="${row.item_id}:${row.storage_area_id}:${row.quantity}" ${canWrite() ? '' : 'disabled'}>Set</button></td>
+      <td><button class="btn ghost table-btn action-set" data-set-level="${row.item_id}:${row.storage_area_id}:${row.quantity}" ${canWrite() ? '' : 'disabled'}>Set</button></td>
     `;
     tbody.appendChild(tr);
   }
@@ -1546,8 +1667,8 @@ function renderUsers() {
       <td>${escapeHtml(formatDate(user.created_at))}</td>
       <td>
         <div class="actions">
-          <button class="btn ghost table-btn" data-user-edit="${user.id}" ${canWrite() ? '' : 'disabled'}>Edit</button>
-          <button class="btn ghost table-btn" data-user-toggle="${user.id}" ${canWrite() ? '' : 'disabled'}>${active ? 'Disable' : 'Enable'}</button>
+          <button class="btn ghost table-btn action-edit" data-user-edit="${user.id}" ${canWrite() ? '' : 'disabled'}>Edit</button>
+          <button class="btn ghost table-btn action-toggle" data-user-toggle="${user.id}" ${canWrite() ? '' : 'disabled'}>${active ? 'Disable' : 'Enable'}</button>
         </div>
       </td>
     `;
@@ -1629,7 +1750,7 @@ function renderTrash() {
         <td>${escapeHtml(row.category || '-')}</td>
         <td>${escapeHtml(row.deleted_by_name || row.deleted_by_email || '-')}</td>
         <td>${escapeHtml(formatDate(row.deleted_at))}</td>
-        <td><button class="btn ghost table-btn" data-restore-item="${row.id}" ${canWrite() ? '' : 'disabled'}>Restore</button></td>
+        <td><button class="btn ghost table-btn action-restore" data-restore-item="${row.id}" ${canWrite() ? '' : 'disabled'}>Restore</button></td>
       `;
       itemsBody.appendChild(tr);
     }
@@ -1645,7 +1766,7 @@ function renderTrash() {
         <td>${escapeHtml(row.name)}</td>
         <td>${escapeHtml(row.deleted_by_name || row.deleted_by_email || '-')}</td>
         <td>${escapeHtml(formatDate(row.deleted_at))}</td>
-        <td><button class="btn ghost table-btn" data-restore-area="${row.id}" ${canWrite() ? '' : 'disabled'}>Restore</button></td>
+        <td><button class="btn ghost table-btn action-restore" data-restore-area="${row.id}" ${canWrite() ? '' : 'disabled'}>Restore</button></td>
       `;
       areasBody.appendChild(tr);
     }
@@ -2316,6 +2437,20 @@ function formatDate(value) {
   }
 
   return date.toLocaleString();
+}
+
+function formatYmd(value) {
+  const parts = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(value || ''));
+  if (!parts) {
+    return value || '-';
+  }
+
+  const date = new Date(Number(parts[1]), Number(parts[2]) - 1, Number(parts[3]));
+  if (Number.isNaN(date.getTime())) {
+    return value || '-';
+  }
+
+  return date.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
 }
 
 function formatSigned(value) {

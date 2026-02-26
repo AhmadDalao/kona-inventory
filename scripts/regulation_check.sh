@@ -55,11 +55,17 @@ curl -fsS -b "$COOKIE_FILE" -X POST "http://127.0.0.1:${SERVER_PORT}/api/invento
   -d '{"movement_type":"receive","item_id":1,"to_storage_area_id":1,"quantity":4}' | rg -q '"updated_levels"'
 
 echo "[6/7] Frontend asset paths"
-curl -fsS "http://127.0.0.1:${SERVER_PORT}/" | rg -q 'Inventory Management System'
-curl -fsS "http://127.0.0.1:${SERVER_PORT}/app.css" | rg -q ':root \{'
-curl -fsS "http://127.0.0.1:${SERVER_PORT}/dashboard.js" | rg -q 'const state ='
+root_html="$(curl -fsS "http://127.0.0.1:${SERVER_PORT}/")"
+rg -q 'Inventory Management System' <<<"$root_html"
+
+app_css="$(curl -fsS "http://127.0.0.1:${SERVER_PORT}/app.css")"
+rg -q ':root \{' <<<"$app_css"
+
+dashboard_js="$(curl -fsS "http://127.0.0.1:${SERVER_PORT}/dashboard.js")"
+rg -q 'const state =' <<<"$dashboard_js"
 
 echo "[7/7] Docs paths"
-curl -fsS "http://127.0.0.1:${SERVER_PORT}/api-docs" | rg -q 'InventoryManagementSystem API'
+docs_html="$(curl -fsS "http://127.0.0.1:${SERVER_PORT}/api-docs")"
+rg -q 'InventoryManagementSystem API' <<<"$docs_html"
 
 echo "Regulation check passed."
