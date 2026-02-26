@@ -142,13 +142,19 @@
         <section class="view" data-view-panel="inventory">
           <article class="card">
             <div class="card-head">
-              <h3>Inventory By Area</h3>
+              <h3 id="levels-title">Inventory Items</h3>
               <div class="inline-controls">
+                <select id="levels-view-mode" title="Inventory view mode">
+                  <option value="summary" selected>Items</option>
+                  <option value="area">Areas</option>
+                </select>
                 <label class="input-inline">
                   <i class="fa-solid fa-magnifying-glass"></i>
                   <input id="levels-search" placeholder="Search product, SKU, category, area" />
                 </label>
-                <select id="levels-area-filter"></select>
+                <span id="levels-area-filter-wrap">
+                  <select id="levels-area-filter"></select>
+                </span>
                 <select id="levels-status-filter">
                   <option value="">All Status</option>
                   <option value="in">In Area</option>
@@ -164,22 +170,11 @@
                 <button class="btn ghost" id="levels-refresh" type="button">Refresh</button>
               </div>
             </div>
-            <p class="hint inventory-legend">Each row is one item in one storage area. <strong>Area Qty</strong> is this row only, <strong>Company Total</strong> is across all areas.</p>
+            <p class="hint inventory-legend" id="levels-legend">Each row is one item in one storage area. <strong>Area Qty</strong> is this row only, <strong>Company Total</strong> is across all areas.</p>
 
             <div class="table-wrap tall">
               <table>
-                <thead>
-                  <tr>
-                    <th data-sort="item_name">Product</th>
-                    <th data-sort="category">Category</th>
-                    <th data-sort="sku">SKU</th>
-                    <th data-sort="storage_area_name">Storage</th>
-                    <th data-sort="quantity">Area Qty</th>
-                    <th data-sort="total_item_quantity">Company Total</th>
-                    <th>Area Status</th>
-                    <th>Action</th>
-                  </tr>
-                </thead>
+                <thead id="levels-head"></thead>
                 <tbody id="levels-table"></tbody>
               </table>
             </div>

@@ -51,7 +51,7 @@ const viewMeta = {
   inventory: {
     title: 'Inventory',
     titleKey: 'view.inventory.title',
-    subtitle: 'Live quantity matrix across storage areas.',
+    subtitle: 'Simple stock view with item totals and area drill-down.',
     subtitleKey: 'view.inventory.subtitle',
     searchPlaceholder: 'Search product, SKU, category, area',
     searchKey: 'view.inventory.search',
@@ -173,7 +173,7 @@ const DEFAULT_UI_TEXTS = {
   'view.overview.subtitle': 'Snapshot of stock, risk, and movement activity.',
   'view.overview.search': 'Search inventory records',
   'view.inventory.title': 'Inventory',
-  'view.inventory.subtitle': 'Live quantity matrix across storage areas.',
+  'view.inventory.subtitle': 'Simple stock view with item totals and area drill-down.',
   'view.inventory.search': 'Search product, SKU, category, area',
   'view.movements.title': 'Movements',
   'view.movements.subtitle': 'Apply stock changes and monitor movement history.',
@@ -1290,11 +1290,15 @@ function toggleFormDisabled(form, disabled) {
 }
 
 function bindSortHandlers() {
-  document.querySelectorAll('[data-view-panel="inventory"] th[data-sort]').forEach((th) => {
-    th.addEventListener('click', () => {
-      toggleSort('levels', th.dataset.sort, 'asc');
-      renderLevels();
-    });
+  const inventoryHead = byId('levels-head');
+  inventoryHead.addEventListener('click', (event) => {
+    const th = event.target.closest('th[data-sort]');
+    if (!th || !inventoryHead.contains(th)) {
+      return;
+    }
+
+    toggleSort('levels', th.dataset.sort, 'asc');
+    renderLevels();
   });
 
   document.querySelectorAll('[data-view-panel="movements"] th[data-sort]').forEach((th) => {
@@ -1401,6 +1405,13 @@ function wireEvents() {
     openUserEditor().catch((error) => toast(error.message, true));
   });
 
+  byId('levels-view-mode').addEventListener('change', () => {
+    state.tables.levels.page = 1;
+    state.tables.levels.sortKey = 'item_name';
+    state.tables.levels.sortDir = 'asc';
+    syncLevelsModeUI();
+    loadLevels();
+  });
   byId('levels-refresh').addEventListener('click', loadLevels);
   byId('levels-search').addEventListener('input', debounce(() => {
     state.tables.levels.page = 1;
@@ -1540,6 +1551,7 @@ function wireEvents() {
   applyRangeUI('audit');
 
   bindSortHandlers();
+  syncLevelsModeUI();
 }
 
 async function boot() {
@@ -1662,6 +1674,7 @@ async function loadMeta() {
   hydrateSettingsForm();
   renderMovementOptions();
   renderAreaFilter();
+  syncLevelsModeUI();
   renderAreas();
   renderItems();
   applyPermissionsUI();
@@ -1794,9 +1807,10 @@ async function loadLevels() {
   const params = new URLSearchParams();
   const search = byId('levels-search').value.trim();
   const area = byId('levels-area-filter').value;
+  const mode = getLevelsViewMode();
 
   if (search) params.set('search', search);
-  if (area) params.set('storage_area_id', area);
+  if (mode === 'area' && area) params.set('storage_area_id', area);
 
   const suffix = params.toString() ? `?${params.toString()}` : '';
   const payload = await api(`/api/inventory/levels${suffix}`);
@@ -2424,28 +2438,172 @@ function renderItems() {
   });
 }
 
-function statusForInventoryRow(row) {
-  const total = Number(row.quantity || 0);
+function getLevelsViewMode() {
+  return byId('levels-view-mode')?.value === 'area' ? 'area' : 'summary';
+}
+
+function buildLevelsSummaryRows(rows) {
+  const map = new Map();
+
+  for (const row of rows) {
+    const key = Number(row.item_id || 0);
+    if (!map.has(key)) {
+      map.set(key, {
+        item_id: row.item_id,
+        item_name: row.item_name,
+        category: row.category,
+        sku: row.sku,
+        unit: row.unit,
+        reorder_level: Number(row.reorder_level || 0),
+        total_item_quantity: Number(row.total_item_quantity || 0),
+        areas_total: 0,
+        areas_with_stock: 0,
+      });
+    }
+
+    const current = map.get(key);
+    current.reorder_level = Number(row.reorder_level || current.reorder_level || 0);
+    current.total_item_quantity = Number(row.total_item_quantity || current.total_item_quantity || 0);
+    current.areas_total += 1;
+    if (Number(row.quantity || 0) > 0) {
+      current.areas_with_stock += 1;
+    }
+  }
+
+  return [...map.values()];
+}
+
+function statusForAreaInventoryRow(row) {
+  const areaQty = Number(row.quantity || 0);
   const reorder = Number(row.reorder_level || 0);
 
-  if (total <= 0) {
+  if (areaQty <= 0) {
     return { key: 'out', label: 'Out in area' };
   }
 
-  if (reorder > 0 && total <= reorder) {
+  if (reorder > 0 && areaQty <= reorder) {
     return { key: 'low', label: 'Low in area' };
   }
 
   return { key: 'in', label: 'In area' };
 }
 
+function statusForSummaryInventoryRow(row) {
+  const totalQty = Number(row.total_item_quantity || 0);
+  const reorder = Number(row.reorder_level || 0);
+
+  if (totalQty <= 0) {
+    return { key: 'out', label: 'Out of stock' };
+  }
+
+  if (reorder > 0 && totalQty <= reorder) {
+    return { key: 'low', label: 'Low stock' };
+  }
+
+  return { key: 'in', label: 'In stock' };
+}
+
+function syncLevelsModeUI() {
+  const mode = getLevelsViewMode();
+  const legend = byId('levels-legend');
+  const title = byId('levels-title');
+  const search = byId('levels-search');
+  const areaFilterWrap = byId('levels-area-filter-wrap');
+  const areaFilter = byId('levels-area-filter');
+  const statusFilter = byId('levels-status-filter');
+  const selectedStatus = statusFilter.value;
+  const head = byId('levels-head');
+
+  if (mode === 'summary') {
+    if (title) {
+      title.textContent = 'Inventory Items';
+    }
+    if (search) {
+      search.placeholder = 'Search product, SKU, category';
+    }
+    if (legend) {
+      legend.innerHTML = 'Each row is one item across all areas. <strong>Total Qty</strong> is company-wide stock. Use <strong>View Areas</strong> to edit by location.';
+    }
+    if (head) {
+      head.innerHTML = `
+        <tr>
+          <th data-sort="item_name">Product</th>
+          <th data-sort="category">Category</th>
+          <th data-sort="sku">SKU</th>
+          <th data-sort="areas_with_stock">Areas With Stock</th>
+          <th data-sort="total_item_quantity">Total Qty</th>
+          <th>Item Status</th>
+          <th>Action</th>
+        </tr>
+      `;
+    }
+    if (areaFilterWrap) {
+      areaFilterWrap.classList.add('hidden');
+    }
+    if (areaFilter) {
+      areaFilter.disabled = true;
+      areaFilter.value = '';
+    }
+    statusFilter.innerHTML = `
+      <option value="">All Status</option>
+      <option value="in">In Stock</option>
+      <option value="low">Low Stock</option>
+      <option value="out">Out of Stock</option>
+    `;
+  } else {
+    if (title) {
+      title.textContent = 'Inventory By Area';
+    }
+    if (search) {
+      search.placeholder = 'Search product, SKU, category, area';
+    }
+    if (legend) {
+      legend.innerHTML = 'Each row is one item in one storage area. <strong>Area Qty</strong> is this row only, <strong>Company Total</strong> is across all areas.';
+    }
+    if (head) {
+      head.innerHTML = `
+        <tr>
+          <th data-sort="item_name">Product</th>
+          <th data-sort="category">Category</th>
+          <th data-sort="sku">SKU</th>
+          <th data-sort="storage_area_name">Storage</th>
+          <th data-sort="quantity">Area Qty</th>
+          <th data-sort="total_item_quantity">Company Total</th>
+          <th>Area Status</th>
+          <th>Action</th>
+        </tr>
+      `;
+    }
+    if (areaFilterWrap) {
+      areaFilterWrap.classList.remove('hidden');
+    }
+    if (areaFilter) {
+      areaFilter.disabled = false;
+    }
+    statusFilter.innerHTML = `
+      <option value="">All Status</option>
+      <option value="in">In Area</option>
+      <option value="low">Low In Area</option>
+      <option value="out">Out In Area</option>
+    `;
+  }
+
+  if (['in', 'low', 'out'].includes(selectedStatus)) {
+    statusFilter.value = selectedStatus;
+  }
+}
+
 function renderLevels() {
+  const mode = getLevelsViewMode();
+  syncLevelsModeUI();
+
   const tableState = state.tables.levels;
-  const sortRows = applySorting(state.levelsRows, tableState.sortKey, tableState.sortDir);
   const statusFilter = byId('levels-status-filter').value;
-  const source = statusFilter
-    ? sortRows.filter((row) => statusForInventoryRow(row).key === statusFilter)
-    : sortRows;
+  const modeRows = mode === 'summary' ? buildLevelsSummaryRows(state.levelsRows) : state.levelsRows;
+  const statusFn = mode === 'summary' ? statusForSummaryInventoryRow : statusForAreaInventoryRow;
+
+  const sortRows = applySorting(modeRows, tableState.sortKey, tableState.sortDir);
+  const source = statusFilter ? sortRows.filter((row) => statusFn(row).key === statusFilter) : sortRows;
 
   const page = paginate(source, tableState.page, tableState.pageSize);
   tableState.page = page.page;
@@ -2454,34 +2612,72 @@ function renderLevels() {
   tbody.innerHTML = '';
 
   if (!page.rows.length) {
-    tbody.innerHTML = '<tr><td colspan="8">No inventory rows found.</td></tr>';
+    const colspan = mode === 'summary' ? 7 : 8;
+    const label = mode === 'summary' ? 'No item records found.' : 'No inventory rows found.';
+    tbody.innerHTML = `<tr><td colspan="${colspan}">${label}</td></tr>`;
     renderPager('levels-pager', 'levels', page.totalRows, page.totalPages);
     return;
   }
 
   for (const row of page.rows) {
-    const status = statusForInventoryRow(row);
+    const status = statusFn(row);
     const tr = document.createElement('tr');
-    tr.innerHTML = `
-      <td>
-        <div class="product-cell">
-          <span class="avatar-dot">${escapeHtml(String(row.item_name || '?').slice(0, 1).toUpperCase())}</span>
-          <div>
-            <strong>${escapeHtml(row.item_name)}</strong>
-            <p class="hint">${escapeHtml(row.unit || 'unit')}</p>
+
+    if (mode === 'summary') {
+      tr.innerHTML = `
+        <td>
+          <div class="product-cell">
+            <span class="avatar-dot">${escapeHtml(String(row.item_name || '?').slice(0, 1).toUpperCase())}</span>
+            <div>
+              <strong>${escapeHtml(row.item_name)}</strong>
+              <p class="hint">${escapeHtml(row.unit || 'unit')}</p>
+            </div>
           </div>
-        </div>
-      </td>
-      <td>${escapeHtml(row.category || '-')}</td>
-      <td>${escapeHtml(row.sku)}</td>
-      <td>${escapeHtml(row.storage_area_name)}</td>
-      <td class="${status.key === 'low' ? 'low' : ''}">${formatNumber(row.quantity)}</td>
-      <td><span class="stock-total">${formatNumber(row.total_item_quantity)}</span></td>
-      <td><span class="status-pill ${status.key}">${status.label}</span></td>
-      <td><button class="btn ghost table-btn action-set" data-set-level="${row.item_id}:${row.storage_area_id}:${row.quantity}" ${canWrite() ? '' : 'disabled'}>Set Area Qty</button></td>
-    `;
+        </td>
+        <td>${escapeHtml(row.category || '-')}</td>
+        <td>${escapeHtml(row.sku)}</td>
+        <td>${formatNumber(row.areas_with_stock)} / ${formatNumber(row.areas_total)}</td>
+        <td class="${status.key === 'low' ? 'low' : ''}"><span class="stock-total">${formatNumber(row.total_item_quantity)}</span></td>
+        <td><span class="status-pill ${status.key}">${status.label}</span></td>
+        <td><button class="btn ghost table-btn action-toggle" data-view-areas="${escapeHtml(row.sku)}">View Areas</button></td>
+      `;
+    } else {
+      tr.innerHTML = `
+        <td>
+          <div class="product-cell">
+            <span class="avatar-dot">${escapeHtml(String(row.item_name || '?').slice(0, 1).toUpperCase())}</span>
+            <div>
+              <strong>${escapeHtml(row.item_name)}</strong>
+              <p class="hint">${escapeHtml(row.unit || 'unit')}</p>
+            </div>
+          </div>
+        </td>
+        <td>${escapeHtml(row.category || '-')}</td>
+        <td>${escapeHtml(row.sku)}</td>
+        <td>${escapeHtml(row.storage_area_name)}</td>
+        <td class="${status.key === 'low' ? 'low' : ''}">${formatNumber(row.quantity)}</td>
+        <td><span class="stock-total">${formatNumber(row.total_item_quantity)}</span></td>
+        <td><span class="status-pill ${status.key}">${status.label}</span></td>
+        <td><button class="btn ghost table-btn action-set" data-set-level="${row.item_id}:${row.storage_area_id}:${row.quantity}" ${canWrite() ? '' : 'disabled'}>Set Area Qty</button></td>
+      `;
+    }
+
     tbody.appendChild(tr);
   }
+
+  tbody.querySelectorAll('[data-view-areas]').forEach((button) => {
+    button.addEventListener('click', () => {
+      const sku = String(button.dataset.viewAreas || '').trim();
+      byId('levels-view-mode').value = 'area';
+      byId('levels-area-filter').value = '';
+      byId('levels-search').value = sku;
+      state.tables.levels.page = 1;
+      state.tables.levels.sortKey = 'item_name';
+      state.tables.levels.sortDir = 'asc';
+      syncLevelsModeUI();
+      loadLevels().catch((error) => toast(error.message, true));
+    });
+  });
 
   tbody.querySelectorAll('[data-set-level]').forEach((button) => {
     button.addEventListener('click', async () => {
