@@ -22,8 +22,8 @@ const state = {
     levels: { page: 1, pageSize: 25, sortKey: 'item_name', sortDir: 'asc' },
     movements: { page: 1, pageSize: 50, sortKey: 'created_at', sortDir: 'desc' },
     users: { page: 1, pageSize: 10, sortKey: 'name', sortDir: 'asc' },
-    audit: { page: 1, pageSize: 25, sortKey: 'created_at', sortDir: 'desc' },
-    adminActivity: { page: 1, pageSize: 25, sortKey: 'created_at', sortDir: 'desc' },
+    audit: { page: 1, pageSize: 100, sortKey: 'created_at', sortDir: 'desc' },
+    adminActivity: { page: 1, pageSize: 100, sortKey: 'created_at', sortDir: 'desc' },
   },
 };
 
@@ -1584,6 +1584,7 @@ function wireEvents() {
   });
   byId('admin-activity-limit').addEventListener('change', () => {
     state.tables.adminActivity.page = 1;
+    state.tables.adminActivity.pageSize = Math.max(1, Number(byId('admin-activity-limit').value || 100));
     loadAdminActivity();
   });
 
@@ -1624,7 +1625,11 @@ function wireEvents() {
     applyRangeUI('audit');
     loadAudit();
   });
-  byId('audit-limit').addEventListener('change', loadAudit);
+  byId('audit-limit').addEventListener('change', () => {
+    state.tables.audit.page = 1;
+    state.tables.audit.pageSize = Math.max(1, Number(byId('audit-limit').value || 100));
+    loadAudit();
+  });
 
   applyRangeUI('admin-activity');
   applyRangeUI('trash');
@@ -1978,13 +1983,14 @@ async function loadAdminActivity() {
   const actorId = byId('admin-activity-user-filter').value;
   const actionScope = byId('admin-activity-action-filter').value;
   const bounds = applyRangeUI('admin-activity');
-  const limit = byId('admin-activity-limit').value;
+  const limit = Math.max(1, Number(byId('admin-activity-limit').value || 100));
+  state.tables.adminActivity.pageSize = limit;
 
   if (actorId) params.set('actor_user_id', actorId);
   if (actionScope) params.set('action_scope', actionScope);
   if (bounds.start) params.set('date_from', bounds.start);
   if (bounds.end) params.set('date_to', bounds.end);
-  if (limit) params.set('limit', limit);
+  params.set('limit', String(limit));
 
   const suffix = params.toString() ? `?${params.toString()}` : '';
   const payload = await api(`/api/audit-logs${suffix}`);
@@ -2072,14 +2078,15 @@ async function loadAudit() {
   const entity = byId('audit-entity-filter').value;
   const actionScope = byId('audit-action-filter').value;
   const bounds = applyRangeUI('audit');
-  const limit = byId('audit-limit').value;
+  const limit = Math.max(1, Number(byId('audit-limit').value || 100));
+  state.tables.audit.pageSize = limit;
 
   if (search) params.set('search', search);
   if (entity) params.set('entity_type', entity);
   if (actionScope) params.set('action_scope', actionScope);
   if (bounds.start) params.set('date_from', bounds.start);
   if (bounds.end) params.set('date_to', bounds.end);
-  if (limit) params.set('limit', limit);
+  params.set('limit', String(limit));
 
   const suffix = params.toString() ? `?${params.toString()}` : '';
   const payload = await api(`/api/audit-logs${suffix}`);
