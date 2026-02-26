@@ -325,6 +325,64 @@ const THEME_PALETTES = {
 
 const byId = (id) => document.getElementById(id);
 
+const DEFAULT_ITEM_UNITS = ['unit', 'pcs', 'box', 'pack', 'set', 'roll', 'kg', 'g', 'l', 'ml'];
+
+function normalizeUnitToken(value) {
+  const text = String(value ?? '').trim().toLowerCase().replace(/\s+/g, ' ');
+  if (!text) {
+    return '';
+  }
+  if (text.length > 24) {
+    return '';
+  }
+  if (!/^[a-z0-9][a-z0-9 ._/-]*$/i.test(text)) {
+    return '';
+  }
+  return text;
+}
+
+function normalizeItemUnits(source, includeDefaults = true) {
+  const seeds = includeDefaults ? [...DEFAULT_ITEM_UNITS] : [];
+  let incoming = [];
+
+  if (Array.isArray(source)) {
+    incoming = source;
+  } else if (typeof source === 'string') {
+    const raw = source.trim();
+    if (raw) {
+      try {
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed)) {
+          incoming = parsed;
+        } else {
+          incoming = raw.split(/[\n,]+/);
+        }
+      } catch {
+        incoming = raw.split(/[\n,]+/);
+      }
+    }
+  }
+
+  const output = [];
+  const seen = new Set();
+  for (const candidate of [...seeds, ...incoming]) {
+    const normalized = normalizeUnitToken(candidate);
+    if (!normalized || seen.has(normalized)) {
+      continue;
+    }
+    seen.add(normalized);
+    output.push(normalized);
+  }
+
+  return output.length ? output : [...DEFAULT_ITEM_UNITS];
+}
+
+function resolveConfiguredItemUnits() {
+  const fromSettings = normalizeItemUnits(state.settings.item_units, false);
+  const fromItems = (state.items || []).map((item) => item?.unit ?? '');
+  return normalizeItemUnits([...fromSettings, ...fromItems], false);
+}
+
 function normalizeUiTexts(source) {
   const normalized = { ...DEFAULT_UI_TEXTS };
   let incoming = {};
@@ -853,6 +911,7 @@ function openEditorModal({
   fields = [],
   submitLabel = 'Save',
   validator = null,
+  onReady = null,
 }) {
   const root = byId('editor-modal');
   const titleEl = byId('editor-modal-title');
@@ -886,6 +945,9 @@ function openEditorModal({
       if (firstInput.tagName === 'INPUT' && firstInput.type !== 'checkbox') {
         firstInput.select();
       }
+    }
+    if (typeof onReady === 'function') {
+      onReady(formEl);
     }
   }, 0);
 
@@ -1599,6 +1661,9 @@ function hydrateSettingsForm() {
   byId('set-site-tagline').value = state.settings.site_tagline || '';
   byId('set-timezone').value = state.settings.timezone || 'America/New_York';
   byId('set-default-currency').value = state.settings.default_currency || 'USD';
+  if (byId('set-item-units')) {
+    byId('set-item-units').value = normalizeItemUnits(state.settings.item_units, false).join(', ');
+  }
   byId('set-low-stock-limit').value = Number(state.settings.dashboard_low_stock_limit || 25);
   byId('set-table-page-size').value = Number(state.settings.table_page_size || 25);
   byId('set-theme-mode').value = state.settings.theme_mode || 'light';
@@ -3139,6 +3204,14 @@ async function openItemEditor(item = null) {
     return;
   }
 
+  const configuredUnits = resolveConfiguredItemUnits();
+  const currentUnit = normalizeUnitToken(item?.unit || '');
+  const unitOptions = [...configuredUnits];
+  if (currentUnit && !unitOptions.includes(currentUnit)) {
+    unitOptions.unshift(currentUnit);
+  }
+  const unitSelectValue = currentUnit || unitOptions[0] || 'unit';
+
   const values = await openEditorModal({
     title: item ? 'Edit Item' : 'Add Item',
     message: item
@@ -3149,7 +3222,22 @@ async function openItemEditor(item = null) {
       { name: 'sku', label: 'SKU', value: item?.sku || '', required: true, placeholder: 'SKU-001' },
       { name: 'name', label: 'Name', value: item?.name || '', required: true, placeholder: 'Product name' },
       { name: 'category', label: 'Category', value: item?.category || '', placeholder: 'Packaging' },
-      { name: 'unit', label: 'Unit', value: item?.unit || 'unit', placeholder: 'unit' },
+      {
+        name: 'unit',
+        label: 'Unit',
+        type: 'select',
+        value: unitSelectValue,
+        options: [
+          ...unitOptions.map((unit) => ({ value: unit, label: unit })),
+          { value: '__custom__', label: 'Custom...' },
+        ],
+      },
+      {
+        name: 'custom_unit',
+        label: 'Custom Unit (optional)',
+        value: '',
+        placeholder: 'Type a new unit when using Custom...',
+      },
       {
         name: 'reorder_level',
         label: 'Reorder Level',
@@ -3161,12 +3249,45 @@ async function openItemEditor(item = null) {
       { name: 'notes', label: 'Notes', value: item?.notes || '', placeholder: 'Optional notes' },
       { name: 'is_active', label: 'Active', type: 'checkbox', value: item ? Number(item.is_active) === 1 : true },
     ],
+    onReady: (formEl) => {
+      const unitSelect = formEl.querySelector('[name="unit"]');
+      const customInput = formEl.querySelector('[name="custom_unit"]');
+      const customWrap = customInput ? customInput.closest('label') : null;
+      if (!unitSelect || !customInput || !customWrap) {
+        return;
+      }
+
+      const sync = () => {
+        const isCustom = String(unitSelect.value || '') === '__custom__';
+        customWrap.classList.toggle('hidden', !isCustom);
+        if (!isCustom) {
+          customInput.value = '';
+        }
+      };
+
+      unitSelect.addEventListener('change', sync);
+      sync();
+    },
     validator: (formValues) => {
       if (!String(formValues.sku || '').trim()) {
         return 'SKU is required.';
       }
       if (!String(formValues.name || '').trim()) {
         return 'Name is required.';
+      }
+      const selectedRaw = String(formValues.unit || '').trim();
+      const customUnit = normalizeUnitToken(formValues.custom_unit || '');
+      if (!selectedRaw) {
+        return 'Unit is required.';
+      }
+      if (selectedRaw === '__custom__' && !customUnit) {
+        return 'Custom unit is required.';
+      }
+      const selectedUnit = selectedRaw === '__custom__'
+        ? customUnit
+        : normalizeUnitToken(selectedRaw);
+      if (!selectedUnit) {
+        return 'Unit value is invalid.';
       }
       const reorder = Number(formValues.reorder_level || 0);
       if (!Number.isFinite(reorder) || reorder < 0) {
@@ -3180,11 +3301,17 @@ async function openItemEditor(item = null) {
     return;
   }
 
+  const selectedRaw = String(values.unit || '').trim();
+  const customUnit = normalizeUnitToken(values.custom_unit || '');
+  const resolvedUnit = selectedRaw === '__custom__'
+    ? customUnit
+    : normalizeUnitToken(selectedRaw);
+
   const body = {
     sku: String(values.sku || '').trim(),
     name: String(values.name || '').trim(),
     category: String(values.category || '').trim(),
-    unit: String(values.unit || '').trim() || 'unit',
+    unit: resolvedUnit || 'unit',
     reorder_level: Number(values.reorder_level || 0),
     notes: String(values.notes || '').trim(),
     is_active: !!values.is_active,
@@ -3199,12 +3326,41 @@ async function openItemEditor(item = null) {
       toast('Item created.');
     }
 
+    await ensureItemUnitPreset(body.unit);
     await reloadMasterData();
     if (canViewAudit()) {
       await loadAudit();
     }
   } catch (error) {
     toast(error.message, true);
+  }
+}
+
+async function ensureItemUnitPreset(unitValue) {
+  const normalized = normalizeUnitToken(unitValue);
+  if (!normalized || !canManageSettings()) {
+    return;
+  }
+
+  const current = normalizeItemUnits(state.settings.item_units, false);
+  if (current.includes(normalized)) {
+    return;
+  }
+
+  const next = normalizeItemUnits([...current, normalized], false);
+
+  try {
+    const response = await api('/api/settings', {
+      method: 'PATCH',
+      body: { item_units: next },
+    });
+    state.settings = response.data || state.settings;
+    hydrateSettingsForm();
+  } catch {
+    state.settings.item_units = next;
+    if (byId('set-item-units')) {
+      byId('set-item-units').value = next.join(', ');
+    }
   }
 }
 
@@ -3221,12 +3377,16 @@ async function onSaveSettings(event) {
     return;
   }
 
+  const rawItemUnits = byId('set-item-units') ? byId('set-item-units').value : '';
+  const unitPresets = normalizeItemUnits(rawItemUnits, false);
+
   const payload = {
     company_name: byId('set-company-name').value.trim(),
     site_name: byId('set-site-name').value.trim(),
     site_tagline: byId('set-site-tagline').value.trim(),
     timezone: byId('set-timezone').value.trim(),
     default_currency: byId('set-default-currency').value.trim(),
+    item_units: unitPresets.length ? unitPresets : [...DEFAULT_ITEM_UNITS],
     dashboard_low_stock_limit: Number(byId('set-low-stock-limit').value || 25),
     table_page_size: Number(byId('set-table-page-size').value || 25),
     theme_mode: byId('set-theme-mode').value,

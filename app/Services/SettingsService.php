@@ -38,6 +38,7 @@ class SettingsService
             'dashboard_low_stock_limit' => '25',
             'table_page_size' => '25',
             'allow_negative_stock' => '0',
+            'item_units' => json_encode($this->defaultItemUnits(), JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE),
             'ui_texts' => json_encode($this->defaultUiTexts(), JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE),
         ];
     }
@@ -85,6 +86,7 @@ class SettingsService
             'dashboard_low_stock_limit' => max(1, (int)($settings['dashboard_low_stock_limit'] ?? 25)),
             'table_page_size' => max(10, min(100, (int)($settings['table_page_size'] ?? 25))),
             'allow_negative_stock' => $this->toBool($settings['allow_negative_stock'] ?? '0'),
+            'item_units' => $this->normalizeItemUnits($settings['item_units'] ?? null, false),
             'ui_texts' => $this->normalizeUiTexts($settings['ui_texts'] ?? null),
         ];
     }
@@ -218,6 +220,23 @@ class SettingsService
             $normalized['allow_negative_stock'] = !empty($payload['allow_negative_stock']) ? '1' : '0';
         }
 
+        if (array_key_exists('item_units', $payload)) {
+            $units = $this->normalizeItemUnits($payload['item_units'], false, false);
+            if ($units === []) {
+                throw new \InvalidArgumentException('item_units must contain at least one unit.');
+            }
+            if (count($units) > 60) {
+                throw new \InvalidArgumentException('item_units must be 60 entries or less.');
+            }
+
+            $encodedUnits = json_encode($units, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
+            if (!is_string($encodedUnits)) {
+                throw new \InvalidArgumentException('item_units could not be serialized.');
+            }
+
+            $normalized['item_units'] = $encodedUnits;
+        }
+
         if (array_key_exists('ui_texts', $payload)) {
             if (!is_array($payload['ui_texts'])) {
                 throw new \InvalidArgumentException('ui_texts must be an object map.');
@@ -263,6 +282,75 @@ class SettingsService
         }
 
         return $normalized;
+    }
+
+    private function defaultItemUnits(): array
+    {
+        return [
+            'unit',
+            'pcs',
+            'box',
+            'pack',
+            'set',
+            'roll',
+            'kg',
+            'g',
+            'l',
+            'ml',
+        ];
+    }
+
+    private function normalizeItemUnits(mixed $value, bool $includeDefaults = true, bool $fallbackToDefaults = true): array
+    {
+        $seed = $includeDefaults ? $this->defaultItemUnits() : [];
+        $incoming = [];
+
+        if (is_array($value)) {
+            $incoming = $value;
+        } elseif (is_string($value)) {
+            $trimmed = trim($value);
+            if ($trimmed !== '') {
+                $decoded = json_decode($trimmed, true);
+                if (is_array($decoded)) {
+                    $incoming = $decoded;
+                } else {
+                    $incoming = preg_split('/[\r\n,]+/', $trimmed) ?: [];
+                }
+            }
+        }
+
+        $merged = [...$seed, ...$incoming];
+        $result = [];
+        $seen = [];
+
+        foreach ($merged as $candidate) {
+            if (!(is_scalar($candidate) || $candidate === null)) {
+                continue;
+            }
+
+            $unit = strtolower(trim((string)$candidate));
+            $unit = preg_replace('/\s+/', ' ', $unit) ?? '';
+            if ($unit === '' || strlen($unit) > 24) {
+                continue;
+            }
+
+            if (!preg_match('/^[a-z0-9][a-z0-9 ._\/-]*$/i', $unit)) {
+                continue;
+            }
+
+            if (isset($seen[$unit])) {
+                continue;
+            }
+
+            $seen[$unit] = true;
+            $result[] = $unit;
+        }
+
+        if ($result === [] && $fallbackToDefaults) {
+            return $this->defaultItemUnits();
+        }
+
+        return $result;
     }
 
     private function defaultUiTexts(): array
