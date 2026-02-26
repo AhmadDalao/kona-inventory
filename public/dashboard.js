@@ -2425,18 +2425,18 @@ function renderItems() {
 }
 
 function statusForInventoryRow(row) {
-  const total = Number(row.total_item_quantity || 0);
+  const total = Number(row.quantity || 0);
   const reorder = Number(row.reorder_level || 0);
 
   if (total <= 0) {
-    return { key: 'out', label: 'Out of stock' };
+    return { key: 'out', label: 'Out in area' };
   }
 
   if (reorder > 0 && total <= reorder) {
-    return { key: 'low', label: 'Low stock' };
+    return { key: 'low', label: 'Low in area' };
   }
 
-  return { key: 'in', label: 'In stock' };
+  return { key: 'in', label: 'In area' };
 }
 
 function renderLevels() {
@@ -2475,10 +2475,10 @@ function renderLevels() {
       <td>${escapeHtml(row.category || '-')}</td>
       <td>${escapeHtml(row.sku)}</td>
       <td>${escapeHtml(row.storage_area_name)}</td>
-      <td>${formatNumber(row.quantity)}</td>
-      <td class="${status.key === 'low' ? 'low' : ''}">${formatNumber(row.total_item_quantity)}</td>
+      <td class="${status.key === 'low' ? 'low' : ''}">${formatNumber(row.quantity)}</td>
+      <td><span class="stock-total">${formatNumber(row.total_item_quantity)}</span></td>
       <td><span class="status-pill ${status.key}">${status.label}</span></td>
-      <td><button class="btn ghost table-btn action-set" data-set-level="${row.item_id}:${row.storage_area_id}:${row.quantity}" ${canWrite() ? '' : 'disabled'}>Set</button></td>
+      <td><button class="btn ghost table-btn action-set" data-set-level="${row.item_id}:${row.storage_area_id}:${row.quantity}" ${canWrite() ? '' : 'disabled'}>Set Area Qty</button></td>
     `;
     tbody.appendChild(tr);
   }

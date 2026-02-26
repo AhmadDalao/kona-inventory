@@ -142,7 +142,7 @@
         <section class="view" data-view-panel="inventory">
           <article class="card">
             <div class="card-head">
-              <h3>Inventory Table</h3>
+              <h3>Inventory By Area</h3>
               <div class="inline-controls">
                 <label class="input-inline">
                   <i class="fa-solid fa-magnifying-glass"></i>
@@ -151,9 +151,9 @@
                 <select id="levels-area-filter"></select>
                 <select id="levels-status-filter">
                   <option value="">All Status</option>
-                  <option value="in">In Stock</option>
-                  <option value="low">Low Stock</option>
-                  <option value="out">Out of Stock</option>
+                  <option value="in">In Area</option>
+                  <option value="low">Low In Area</option>
+                  <option value="out">Out In Area</option>
                 </select>
                 <select id="levels-page-size">
                   <option value="10">10</option>
@@ -164,6 +164,7 @@
                 <button class="btn ghost" id="levels-refresh" type="button">Refresh</button>
               </div>
             </div>
+            <p class="hint inventory-legend">Each row is one item in one storage area. <strong>Area Qty</strong> is this row only, <strong>Company Total</strong> is across all areas.</p>
 
             <div class="table-wrap tall">
               <table>
@@ -173,9 +174,9 @@
                     <th data-sort="category">Category</th>
                     <th data-sort="sku">SKU</th>
                     <th data-sort="storage_area_name">Storage</th>
-                    <th data-sort="quantity">Qty</th>
-                    <th data-sort="total_item_quantity">Total</th>
-                    <th>Status</th>
+                    <th data-sort="quantity">Area Qty</th>
+                    <th data-sort="total_item_quantity">Company Total</th>
+                    <th>Area Status</th>
                     <th>Action</th>
                   </tr>
                 </thead>
