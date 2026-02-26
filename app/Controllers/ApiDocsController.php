@@ -39,6 +39,7 @@ class ApiDocsController
                     ['method' => 'DELETE', 'path' => '/api/storage-areas/{id}', 'description' => 'Delete storage area'],
                     ['method' => 'GET', 'path' => '/api/items', 'description' => 'List items'],
                     ['method' => 'POST', 'path' => '/api/items', 'description' => 'Create item'],
+                    ['method' => 'POST', 'path' => '/api/items/upload-image', 'description' => 'Upload item image (multipart form-data)'],
                     ['method' => 'PATCH', 'path' => '/api/items/{id}', 'description' => 'Update item'],
                     ['method' => 'DELETE', 'path' => '/api/items/{id}', 'description' => 'Delete item'],
                     ['method' => 'GET', 'path' => '/api/inventory/levels', 'description' => 'Inventory matrix by item and area'],

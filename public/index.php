@@ -257,6 +257,14 @@ $router->post('/api/items', $secure(
     'item',
     'Created item'
 ));
+$router->post('/api/items/upload-image', $secure(
+    fn(Request $r) => $items->uploadImage($r),
+    $writeRoles,
+    true,
+    'item.image.upload',
+    'item',
+    'Uploaded item image'
+));
 $router->patch('/api/items/{id}', $secure(
     fn(Request $r, array $p) => $items->update($r, $p),
     $writeRoles,

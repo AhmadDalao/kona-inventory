@@ -81,6 +81,7 @@ class InventoryRepository
                     i.category,
                     i.unit,
                     i.reorder_level,
+                    i.image_path,
                     i.is_active AS item_is_active,
                     sa.id AS storage_area_id,
                     sa.code AS storage_area_code,

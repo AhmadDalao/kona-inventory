@@ -464,6 +464,76 @@ function resolveConfiguredItemUnits() {
   return normalizeItemUnits([...fromSettings, ...fromItems], false);
 }
 
+function normalizeItemImagePath(value) {
+  const path = String(value || '').trim();
+  if (!path) {
+    return '';
+  }
+  if (!path.startsWith('/uploads/items/') || path.includes('..')) {
+    return '';
+  }
+  return path;
+}
+
+function itemImageUrl(value) {
+  return normalizeItemImagePath(value);
+}
+
+function itemAvatarHtml(name, imagePath) {
+  const src = itemImageUrl(imagePath);
+  if (src) {
+    return `<span class="item-avatar"><img src="${escapeHtml(src)}" alt="${escapeHtml(name || 'Item image')}" loading="lazy" /></span>`;
+  }
+  return `<span class="avatar-dot">${escapeHtml(String(name || '?').slice(0, 1).toUpperCase())}</span>`;
+}
+
+function findOnGroundArea() {
+  const areas = Array.isArray(state.areas) ? state.areas : [];
+  return areas.find((area) => String(area.code || '').toUpperCase() === 'ONGRD')
+    || areas.find((area) => String(area.name || '').toLowerCase().includes('on ground'))
+    || areas.find((area) => Number(area.is_active) === 1)
+    || null;
+}
+
+function getAreaQuantityForItem(itemId, areaId) {
+  if (!itemId || !areaId) {
+    return null;
+  }
+
+  const row = (state.levelsRows || []).find((level) => Number(level.item_id) === Number(itemId) && Number(level.storage_area_id) === Number(areaId));
+  if (!row) {
+    return null;
+  }
+  return Number(row.quantity || 0);
+}
+
+function onGroundQuantityForItem(itemId) {
+  const area = findOnGroundArea();
+  if (!area || !itemId) {
+    return null;
+  }
+  return getAreaQuantityForItem(itemId, area.id);
+}
+
+async function uploadItemImage(file, oldImagePath = '') {
+  if (!file) {
+    return oldImagePath || '';
+  }
+
+  const form = new FormData();
+  form.append('image', file);
+  if (oldImagePath) {
+    form.append('old_image_path', oldImagePath);
+  }
+
+  const payload = await api('/api/items/upload-image', {
+    method: 'POST',
+    body: form,
+  });
+
+  return String(payload?.data?.image_path || '');
+}
+
 function normalizeUiTexts(source) {
   const normalized = { ...DEFAULT_UI_TEXTS };
   let incoming = {};
@@ -680,17 +750,23 @@ function initUiTextEditor() {
 }
 
 async function api(path, options = {}) {
+  const body = options.body;
+  const isFormData = typeof FormData !== 'undefined' && body instanceof FormData;
   const config = {
     method: options.method || 'GET',
     credentials: 'same-origin',
-    headers: {
-      'Content-Type': 'application/json',
-      ...(options.headers || {}),
-    },
+    headers: isFormData
+      ? {
+        ...(options.headers || {}),
+      }
+      : {
+        'Content-Type': 'application/json',
+        ...(options.headers || {}),
+      },
   };
 
-  if (options.body !== undefined) {
-    config.body = JSON.stringify(options.body);
+  if (body !== undefined) {
+    config.body = isFormData ? body : JSON.stringify(body);
   }
 
   const response = await fetch(path, config);
@@ -950,12 +1026,14 @@ function renderEditorField(field) {
   const required = field.required ? ' required' : '';
   const placeholder = field.placeholder ? ` placeholder="${escapeHtml(field.placeholder)}"` : '';
   const value = field.value ?? '';
+  const helper = field.help ? `<span class="hint">${escapeHtml(String(field.help))}</span>` : '';
 
   if (field.type === 'checkbox') {
     return `
       <label class="inline-check field-span-2">
         <input id="${id}" name="${escapeHtml(name)}" type="checkbox" ${value ? 'checked' : ''} />
         ${label}
+        ${helper}
       </label>
     `;
   }
@@ -970,6 +1048,18 @@ function renderEditorField(field) {
       <label>
         ${label}
         <select id="${id}" name="${escapeHtml(name)}"${required}>${options}</select>
+        ${helper}
+      </label>
+    `;
+  }
+
+  if (field.type === 'file') {
+    const accept = field.accept ? ` accept="${escapeHtml(String(field.accept))}"` : '';
+    return `
+      <label class="field-span-2">
+        ${label}
+        <input id="${id}" name="${escapeHtml(name)}" type="file"${accept}${required} />
+        ${helper}
       </label>
     `;
   }
@@ -982,6 +1072,7 @@ function renderEditorField(field) {
     <label>
       ${label}
       <input id="${id}" name="${escapeHtml(name)}" type="${escapeHtml(type)}" value="${escapeHtml(String(value))}"${placeholder}${required}${min}${max}${step} />
+      ${helper}
     </label>
   `;
 }
@@ -1082,6 +1173,8 @@ function readEditorModalValues() {
     }
     if (field.type === 'checkbox') {
       values[name] = !!node.checked;
+    } else if (field.type === 'file') {
+      values[name] = node.files && node.files.length ? node.files[0] : null;
     } else {
       values[name] = String(node.value ?? '');
     }
@@ -1905,6 +1998,7 @@ async function loadLevels() {
   state.tables.levels.page = 1;
   renderLevels();
   renderInventoryHealth();
+  renderItems();
 }
 
 async function loadMovements() {
@@ -2456,18 +2550,22 @@ function renderItems() {
   tbody.innerHTML = '';
 
   if (!state.items.length) {
-    tbody.innerHTML = '<tr><td colspan="6">No items found.</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="8">No items found.</td></tr>';
     return;
   }
 
+  const onGroundArea = findOnGroundArea();
   for (const item of state.items) {
     const active = Number(item.is_active) === 1;
+    const onGroundQty = onGroundArea ? onGroundQuantityForItem(item.id) : null;
     const tr = document.createElement('tr');
     tr.innerHTML = `
+      <td>${itemAvatarHtml(item.name, item.image_path)}</td>
       <td>${escapeHtml(item.sku)}</td>
       <td>${escapeHtml(item.name)}</td>
       <td>${escapeHtml(item.category || '-')}</td>
       <td>${formatNumber(item.reorder_level)}</td>
+      <td>${onGroundArea ? (onGroundQty === null ? '-' : `${formatNumber(onGroundQty)} ${escapeHtml(item.unit || 'unit')}`) : '-'}</td>
       <td><span class="status-pill ${active ? 'in' : 'out'}">${active ? 'Active' : 'Inactive'}</span></td>
       <td>
         <div class="actions">
@@ -2543,6 +2641,7 @@ function buildLevelsSummaryRows(rows) {
         category: row.category,
         sku: row.sku,
         unit: row.unit,
+        image_path: row.image_path || '',
         reorder_level: Number(row.reorder_level || 0),
         total_item_quantity: Number(row.total_item_quantity || 0),
         areas_total: 0,
@@ -2551,6 +2650,7 @@ function buildLevelsSummaryRows(rows) {
     }
 
     const current = map.get(key);
+    current.image_path = row.image_path || current.image_path || '';
     current.reorder_level = Number(row.reorder_level || current.reorder_level || 0);
     current.total_item_quantity = Number(row.total_item_quantity || current.total_item_quantity || 0);
     current.areas_total += 1;
@@ -2716,7 +2816,7 @@ function renderLevels() {
       tr.innerHTML = `
         <td>
           <div class="product-cell">
-            <span class="avatar-dot">${escapeHtml(String(row.item_name || '?').slice(0, 1).toUpperCase())}</span>
+            ${itemAvatarHtml(row.item_name, row.image_path)}
             <div>
               <strong>${escapeHtml(row.item_name)}</strong>
               <p class="hint">${escapeHtml(row.unit || 'unit')}</p>
@@ -2734,7 +2834,7 @@ function renderLevels() {
       tr.innerHTML = `
         <td>
           <div class="product-cell">
-            <span class="avatar-dot">${escapeHtml(String(row.item_name || '?').slice(0, 1).toUpperCase())}</span>
+            ${itemAvatarHtml(row.item_name, row.image_path)}
             <div>
               <strong>${escapeHtml(row.item_name)}</strong>
               <p class="hint">${escapeHtml(row.unit || 'unit')}</p>
@@ -3628,12 +3728,19 @@ async function openItemEditor(item = null) {
     unitOptions.unshift(currentUnit);
   }
   const unitSelectValue = currentUnit || unitOptions[0] || 'unit';
+  const currentImagePath = normalizeItemImagePath(item?.image_path || '');
+  const activeAreas = (state.areas || []).filter((area) => Number(area.is_active) === 1);
+  const onGroundArea = findOnGroundArea();
+  const defaultOnGroundAreaId = Number(onGroundArea?.id || activeAreas[0]?.id || 0);
+  const onGroundExistingQty = item?.id && defaultOnGroundAreaId
+    ? getAreaQuantityForItem(item.id, defaultOnGroundAreaId)
+    : null;
 
   const values = await openEditorModal({
     title: item ? 'Edit Item' : 'Add Item',
     message: item
-      ? 'Update SKU details and reorder rules.'
-      : 'Add a new SKU to the inventory catalog.',
+      ? 'Update SKU details, upload item image, and sync on-ground stock if needed.'
+      : 'Add a new SKU, then set its real-world on-ground quantity.',
     submitLabel: item ? 'Save Changes' : 'Create Item',
     fields: [
       { name: 'sku', label: 'SKU', value: item?.sku || '', required: true, placeholder: 'SKU-001' },
@@ -3662,6 +3769,40 @@ async function openItemEditor(item = null) {
         value: Number(item?.reorder_level || 0),
         min: 0,
         step: 1,
+      },
+      {
+        name: 'image_file',
+        label: 'Item Image (optional)',
+        type: 'file',
+        accept: 'image/png,image/jpeg,image/webp,image/gif',
+        help: currentImagePath
+          ? 'Leave empty to keep current image. Upload JPG/PNG/WEBP/GIF up to 5 MB.'
+          : 'Upload JPG/PNG/WEBP/GIF up to 5 MB.',
+      },
+      {
+        name: 'on_ground_area_id',
+        label: 'On-ground Area',
+        type: 'select',
+        value: defaultOnGroundAreaId ? String(defaultOnGroundAreaId) : '',
+        options: activeAreas.length
+          ? activeAreas.map((area) => ({
+            value: String(area.id),
+            label: `${area.code} - ${area.name}`,
+          }))
+          : [{ value: '', label: 'No active areas available' }],
+        help: 'Use ONGRD area to track items currently in use outside shelf storage.',
+      },
+      {
+        name: 'on_ground_quantity',
+        label: 'On-ground Quantity (optional)',
+        type: 'number',
+        value: '',
+        min: 0,
+        step: 0.001,
+        placeholder: 'Leave empty to skip stock sync',
+        help: onGroundExistingQty !== null
+          ? `Current on-ground qty: ${formatNumber(onGroundExistingQty)} ${item?.unit || 'unit'}`
+          : 'Leave empty to skip stock sync for now.',
       },
       { name: 'notes', label: 'Notes', value: item?.notes || '', placeholder: 'Optional notes' },
       { name: 'is_active', label: 'Active', type: 'checkbox', value: item ? Number(item.is_active) === 1 : true },
@@ -3710,6 +3851,26 @@ async function openItemEditor(item = null) {
       if (!Number.isFinite(reorder) || reorder < 0) {
         return 'Reorder level must be 0 or greater.';
       }
+      if (formValues.image_file) {
+        const allowed = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
+        if (!allowed.includes(String(formValues.image_file.type || '').toLowerCase())) {
+          return 'Image must be JPG, PNG, WEBP, or GIF.';
+        }
+        if (Number(formValues.image_file.size || 0) > 5 * 1024 * 1024) {
+          return 'Image must be 5 MB or smaller.';
+        }
+      }
+      const syncRaw = String(formValues.on_ground_quantity ?? '').trim();
+      if (syncRaw !== '') {
+        const syncQty = Number(syncRaw);
+        if (!Number.isFinite(syncQty) || syncQty < 0) {
+          return 'On-ground quantity must be 0 or greater.';
+        }
+        const syncAreaId = Number(formValues.on_ground_area_id || 0);
+        if (syncAreaId <= 0) {
+          return 'Pick an on-ground area before syncing quantity.';
+        }
+      }
       return null;
     },
   });
@@ -3735,12 +3896,47 @@ async function openItemEditor(item = null) {
   };
 
   try {
+    let savedItemId = Number(item?.id || 0);
     if (item?.id) {
-      await api(`/api/items/${item.id}`, { method: 'PATCH', body });
-      toast('Item updated.');
+      const updated = await api(`/api/items/${item.id}`, { method: 'PATCH', body });
+      savedItemId = Number(updated?.data?.id || item.id);
     } else {
-      await api('/api/items', { method: 'POST', body });
-      toast('Item created.');
+      const created = await api('/api/items', { method: 'POST', body });
+      savedItemId = Number(created?.data?.id || 0);
+    }
+
+    if (savedItemId <= 0) {
+      throw new Error('Item save failed. Missing item id.');
+    }
+
+    const file = values.image_file;
+    if (file) {
+      const uploadedImagePath = await uploadItemImage(file, currentImagePath);
+      if (uploadedImagePath) {
+        await api(`/api/items/${savedItemId}`, {
+          method: 'PATCH',
+          body: { image_path: uploadedImagePath },
+        });
+      }
+    }
+
+    const onGroundQtyRaw = String(values.on_ground_quantity ?? '').trim();
+    if (onGroundQtyRaw !== '') {
+      const onGroundQty = Number(onGroundQtyRaw);
+      const onGroundAreaId = Number(values.on_ground_area_id || 0);
+      if (Number.isFinite(onGroundQty) && onGroundQty >= 0 && onGroundAreaId > 0) {
+        await api('/api/inventory/movements', {
+          method: 'POST',
+          body: {
+            movement_type: 'set',
+            item_id: savedItemId,
+            storage_area_id: onGroundAreaId,
+            target_quantity: onGroundQty,
+            reference: 'ONGROUND-SYNC',
+            note: item?.id ? 'On-ground quantity synced from item editor' : 'Initial on-ground quantity during item creation',
+          },
+        });
+      }
     }
 
     await ensureItemUnitPreset(body.unit);
@@ -3748,6 +3944,7 @@ async function openItemEditor(item = null) {
     if (canViewAudit()) {
       await loadAudit();
     }
+    toast(item?.id ? 'Item updated.' : 'Item created.');
   } catch (error) {
     toast(error.message, true);
   }

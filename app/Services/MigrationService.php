@@ -28,6 +28,7 @@ class MigrationService
 
         self::seedAdminUser($conn);
         self::seedStorageAreas($conn);
+        self::ensureOnGroundArea($conn);
         self::seedDefaultSettings();
         self::normalizeLegacyRoles($conn);
     }
@@ -75,6 +76,7 @@ class MigrationService
                 category TEXT,
                 unit TEXT NOT NULL DEFAULT "unit",
                 reorder_level REAL NOT NULL DEFAULT 0,
+                image_path TEXT,
                 notes TEXT,
                 is_active INTEGER NOT NULL DEFAULT 1,
                 deleted_at TEXT,
@@ -160,6 +162,7 @@ class MigrationService
 
     private static function ensureSoftDeleteColumns(PDO $conn): void
     {
+        self::ensureColumn($conn, 'items', 'image_path', 'TEXT');
         self::ensureColumn($conn, 'items', 'deleted_at', 'TEXT');
         self::ensureColumn($conn, 'items', 'deleted_by', 'INTEGER');
         self::ensureColumn($conn, 'storage_areas', 'deleted_at', 'TEXT');
@@ -258,6 +261,38 @@ class MigrationService
                 ':updated_at' => $now,
             ]);
         }
+    }
+
+    private static function ensureOnGroundArea(PDO $conn): void
+    {
+        $stmt = $conn->prepare(
+            'SELECT id
+             FROM storage_areas
+             WHERE upper(code) = :code
+                OR lower(name) = lower(:name)
+             LIMIT 1'
+        );
+        $stmt->execute([
+            ':code' => 'ONGRD',
+            ':name' => 'On Ground / In Use',
+        ]);
+
+        if ($stmt->fetch()) {
+            return;
+        }
+
+        $now = gmdate('c');
+        $insert = $conn->prepare(
+            'INSERT INTO storage_areas (code, name, description, is_active, deleted_at, deleted_by, created_at, updated_at)
+             VALUES (:code, :name, :description, 1, NULL, NULL, :created_at, :updated_at)'
+        );
+        $insert->execute([
+            ':code' => 'ONGRD',
+            ':name' => 'On Ground / In Use',
+            ':description' => 'Operational stock currently being used outside warehouse shelves',
+            ':created_at' => $now,
+            ':updated_at' => $now,
+        ]);
     }
 
     private static function seedDefaultSettings(): void

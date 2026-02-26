@@ -11,6 +11,7 @@ class Request
         private readonly string $path,
         private readonly array $query,
         private readonly array $body,
+        private readonly array $files,
         private readonly array $headers,
         private readonly string $ipAddress,
         private readonly string $userAgent,
@@ -46,8 +47,9 @@ class Request
         $contentType = strtolower((string)($_SERVER['CONTENT_TYPE'] ?? ''));
         $rawBody = file_get_contents('php://input') ?: '';
         $body = is_array($_POST) ? $_POST : [];
+        $files = is_array($_FILES) ? $_FILES : [];
 
-        if ($rawBody !== '') {
+        if ($rawBody !== '' && !str_contains($contentType, 'multipart/form-data')) {
             if (str_contains($contentType, 'application/json')) {
                 $decoded = json_decode($rawBody, true);
                 if (is_array($decoded)) {
@@ -64,7 +66,7 @@ class Request
         $ipAddress = (string)($_SERVER['REMOTE_ADDR'] ?? '');
         $userAgent = (string)($_SERVER['HTTP_USER_AGENT'] ?? '');
 
-        return new self($method, $path, $query, $body, $headers, $ipAddress, $userAgent);
+        return new self($method, $path, $query, $body, $files, $headers, $ipAddress, $userAgent);
     }
 
     private static function normalizePath(string $path, string $scriptName): string
@@ -112,6 +114,16 @@ class Request
     public function body(): array
     {
         return $this->body;
+    }
+
+    public function files(): array
+    {
+        return $this->files;
+    }
+
+    public function file(string $key, mixed $default = null): mixed
+    {
+        return $this->files[$key] ?? $default;
     }
 
     public function headers(): array

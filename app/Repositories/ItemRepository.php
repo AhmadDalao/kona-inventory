@@ -20,7 +20,7 @@ class ItemRepository
             $conditions[] = 'deleted_at IS NULL';
         }
 
-        $sql = 'SELECT id, sku, name, category, unit, reorder_level, notes, is_active, deleted_at, deleted_by, created_at, updated_at
+        $sql = 'SELECT id, sku, name, category, unit, reorder_level, image_path, notes, is_active, deleted_at, deleted_by, created_at, updated_at
                 FROM items';
 
         if ($conditions !== []) {
@@ -34,7 +34,7 @@ class ItemRepository
 
     public function find(int $id, bool $includeDeleted = false): ?array
     {
-        $sql = 'SELECT id, sku, name, category, unit, reorder_level, notes, is_active, deleted_at, deleted_by, created_at, updated_at
+        $sql = 'SELECT id, sku, name, category, unit, reorder_level, image_path, notes, is_active, deleted_at, deleted_by, created_at, updated_at
                 FROM items
                 WHERE id = :id';
 
@@ -55,8 +55,8 @@ class ItemRepository
     {
         $now = gmdate('c');
         $stmt = Db::conn()->prepare(
-            'INSERT INTO items (sku, name, category, unit, reorder_level, notes, is_active, deleted_at, deleted_by, created_at, updated_at)
-             VALUES (:sku, :name, :category, :unit, :reorder_level, :notes, :is_active, NULL, NULL, :created_at, :updated_at)'
+            'INSERT INTO items (sku, name, category, unit, reorder_level, image_path, notes, is_active, deleted_at, deleted_by, created_at, updated_at)
+             VALUES (:sku, :name, :category, :unit, :reorder_level, :image_path, :notes, :is_active, NULL, NULL, :created_at, :updated_at)'
         );
 
         $stmt->execute([
@@ -65,6 +65,7 @@ class ItemRepository
             ':category' => trim((string)($data['category'] ?? '')),
             ':unit' => trim((string)($data['unit'] ?? 'unit')),
             ':reorder_level' => (float)($data['reorder_level'] ?? 0),
+            ':image_path' => trim((string)($data['image_path'] ?? '')),
             ':notes' => trim((string)($data['notes'] ?? '')),
             ':is_active' => !empty($data['is_active']) ? 1 : 0,
             ':created_at' => $now,
@@ -83,14 +84,15 @@ class ItemRepository
 
         $stmt = Db::conn()->prepare(
             'UPDATE items
-             SET sku = :sku,
-                 name = :name,
-                 category = :category,
-                 unit = :unit,
-                 reorder_level = :reorder_level,
-                 notes = :notes,
-                 is_active = :is_active,
-                 updated_at = :updated_at
+                 SET sku = :sku,
+                     name = :name,
+                     category = :category,
+                     unit = :unit,
+                     reorder_level = :reorder_level,
+                     image_path = :image_path,
+                     notes = :notes,
+                     is_active = :is_active,
+                     updated_at = :updated_at
              WHERE id = :id'
         );
 
@@ -101,6 +103,7 @@ class ItemRepository
             ':category' => trim((string)($data['category'] ?? $existing['category'] ?? '')),
             ':unit' => trim((string)($data['unit'] ?? $existing['unit'])),
             ':reorder_level' => array_key_exists('reorder_level', $data) ? (float)$data['reorder_level'] : (float)$existing['reorder_level'],
+            ':image_path' => trim((string)($data['image_path'] ?? $existing['image_path'] ?? '')),
             ':notes' => trim((string)($data['notes'] ?? $existing['notes'] ?? '')),
             ':is_active' => array_key_exists('is_active', $data) ? (!empty($data['is_active']) ? 1 : 0) : (int)$existing['is_active'],
             ':updated_at' => gmdate('c'),

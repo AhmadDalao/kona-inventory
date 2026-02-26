@@ -1175,6 +1175,24 @@ tbody tr:hover {
   font-weight: 800;
 }
 
+.item-avatar {
+  width: 34px;
+  height: 34px;
+  border-radius: 9px;
+  border: 1px solid #d9def0;
+  background: #f8faff;
+  overflow: hidden;
+  display: inline-block;
+  flex-shrink: 0;
+}
+
+.item-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
 .status-pill {
   display: inline-flex;
   align-items: center;

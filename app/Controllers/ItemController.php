@@ -30,6 +30,7 @@ class ItemController
         $sku = strtoupper(trim((string)($payload['sku'] ?? '')));
         $name = trim((string)($payload['name'] ?? ''));
         $reorder = $payload['reorder_level'] ?? 0;
+        $imagePath = $this->normalizeImagePath($payload['image_path'] ?? '');
 
         if ($sku === '' || $name === '') {
             throw new \InvalidArgumentException('sku and name are required.');
@@ -45,6 +46,7 @@ class ItemController
                 'category' => $payload['category'] ?? '',
                 'unit' => $payload['unit'] ?? 'unit',
                 'reorder_level' => (float)$reorder,
+                'image_path' => $imagePath,
                 'notes' => $payload['notes'] ?? '',
                 'is_active' => array_key_exists('is_active', $payload) ? (int)(bool)$payload['is_active'] : 1,
             ]);
@@ -65,6 +67,9 @@ class ItemController
         $payload = $request->body();
         if (array_key_exists('reorder_level', $payload) && (!is_numeric($payload['reorder_level']) || (float)$payload['reorder_level'] < 0)) {
             throw new \InvalidArgumentException('reorder_level must be 0 or greater.');
+        }
+        if (array_key_exists('image_path', $payload)) {
+            $payload['image_path'] = $this->normalizeImagePath($payload['image_path']);
         }
 
         try {
@@ -101,5 +106,103 @@ class ItemController
         }
 
         return ['body' => ['message' => 'Item moved to trash.'], 'status' => 200];
+    }
+
+    public function uploadImage(Request $request): array
+    {
+        $file = $request->file('image');
+        if (!is_array($file)) {
+            throw new \InvalidArgumentException('image file is required.');
+        }
+
+        $errorCode = (int)($file['error'] ?? UPLOAD_ERR_NO_FILE);
+        if ($errorCode !== UPLOAD_ERR_OK) {
+            throw new \RuntimeException('Image upload failed. Please choose a valid file.', 422);
+        }
+
+        $size = (int)($file['size'] ?? 0);
+        if ($size <= 0 || $size > 5 * 1024 * 1024) {
+            throw new \InvalidArgumentException('Image size must be between 1 byte and 5 MB.');
+        }
+
+        $tmpPath = (string)($file['tmp_name'] ?? '');
+        if ($tmpPath === '' || !is_uploaded_file($tmpPath)) {
+            throw new \RuntimeException('Invalid uploaded image.', 422);
+        }
+
+        $mime = (new \finfo(FILEINFO_MIME_TYPE))->file($tmpPath);
+        $allowed = [
+            'image/jpeg' => 'jpg',
+            'image/png' => 'png',
+            'image/webp' => 'webp',
+            'image/gif' => 'gif',
+        ];
+        $extension = $allowed[$mime] ?? null;
+        if ($extension === null) {
+            throw new \InvalidArgumentException('Supported image formats: JPG, PNG, WEBP, GIF.');
+        }
+
+        $uploadDir = BASE_PATH . '/public/uploads/items';
+        if (!is_dir($uploadDir) && !mkdir($uploadDir, 0755, true) && !is_dir($uploadDir)) {
+            throw new \RuntimeException('Unable to create upload directory.', 500);
+        }
+
+        $fileName = gmdate('YmdHis') . '-' . bin2hex(random_bytes(8)) . '.' . $extension;
+        $target = $uploadDir . '/' . $fileName;
+        if (!move_uploaded_file($tmpPath, $target)) {
+            throw new \RuntimeException('Failed to save uploaded image.', 500);
+        }
+
+        $publicPath = '/uploads/items/' . $fileName;
+
+        $oldPath = $this->normalizeImagePath($request->input('old_image_path', ''));
+        if ($oldPath !== '') {
+            $this->deleteImageFile($oldPath);
+        }
+
+        return [
+            'body' => [
+                'data' => [
+                    'image_path' => $publicPath,
+                    'image_url' => $publicPath,
+                ],
+            ],
+            'status' => 201,
+        ];
+    }
+
+    private function normalizeImagePath(mixed $value): string
+    {
+        $path = trim((string)$value);
+        if ($path === '') {
+            return '';
+        }
+
+        if (!str_starts_with($path, '/uploads/items/')) {
+            throw new \InvalidArgumentException('image_path must point to /uploads/items/.');
+        }
+
+        if (strlen($path) > 220 || str_contains($path, '..')) {
+            throw new \InvalidArgumentException('image_path is invalid.');
+        }
+
+        return $path;
+    }
+
+    private function deleteImageFile(string $publicPath): void
+    {
+        if ($publicPath === '' || !str_starts_with($publicPath, '/uploads/items/')) {
+            return;
+        }
+
+        $fileName = basename($publicPath);
+        if ($fileName === '' || $fileName === '.' || $fileName === '..') {
+            return;
+        }
+
+        $absolute = BASE_PATH . '/public/uploads/items/' . $fileName;
+        if (is_file($absolute)) {
+            @unlink($absolute);
+        }
     }
 }

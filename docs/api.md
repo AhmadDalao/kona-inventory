@@ -69,6 +69,7 @@ User roles:
 
 - `GET /api/items?include_inactive=1&include_deleted=1`
 - `POST /api/items`
+- `POST /api/items/upload-image` (multipart form-data with field `image`, optional `old_image_path`)
 - `PATCH /api/items/{id}`
 - `DELETE /api/items/{id}`
 
@@ -107,3 +108,6 @@ Movement payload:
 - `storage_area_id`: integer (adjust/set)
 - `reference`: string
 - `note`: string
+
+Tip for live operational stock:
+- Use storage area code `ONGRD` (`On Ground / In Use`) and apply `set` movement to sync current physical quantity in use.
