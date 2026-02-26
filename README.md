@@ -85,4 +85,5 @@ php scripts/seed_dummy_data.php --count=20 --append
 
 - [Docs Index](./docs/README.md)
 - [API Reference](./docs/api.md)
+- [Admin User Guide](./docs/user-guide.md)
 - [Deployment Notes](./docs/deployment.md)

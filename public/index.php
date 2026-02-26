@@ -43,6 +43,16 @@ if (!str_starts_with($path, '/api/')) {
         }
     }
 
+    $guideAliases = ['/user-guide', '/docs/user-guide'];
+    if (in_array($path, $guideAliases, true)) {
+        $guideFile = $publicRoot . '/user-guide.html';
+        if (is_file($guideFile)) {
+            header('Content-Type: text/html; charset=UTF-8');
+            readfile($guideFile);
+            exit;
+        }
+    }
+
     if ($path !== '/' && $path !== '') {
         $candidate = realpath($publicRoot . $path);
         if ($candidate && str_starts_with($candidate, $publicRoot . DIRECTORY_SEPARATOR) && is_file($candidate)) {

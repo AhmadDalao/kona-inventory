@@ -499,6 +499,31 @@ body.sidebar-collapsed .nav-btn {
   background: linear-gradient(90deg, var(--primary), var(--icon-accent));
 }
 
+.entity-surface {
+  display: grid;
+  gap: 10px;
+}
+
+.entity-surface .entity-head {
+  padding: 0;
+  border-bottom: none;
+}
+
+.entity-surface .table-headline {
+  padding: 0;
+}
+
+.entity-surface .catalog-table-wrap {
+  margin: 0;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--panel);
+}
+
+.entity-surface .pager {
+  margin-top: 2px;
+}
+
 .entity-head {
   padding: 16px 18px 10px;
   border-bottom: 1px solid var(--line-2);

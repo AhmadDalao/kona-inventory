@@ -365,10 +365,10 @@
         </section>
 
         <section class="view" data-view-panel="items">
-          <article class="card entity-card">
+          <article class="entity-surface">
             <div class="entity-head">
               <div>
-                <h3>Item Catalog</h3>
+                <h3>Item Directory</h3>
                 <p class="hint">Manage product SKUs, categories, units, and reorder points.</p>
               </div>
               <div class="actions">
@@ -816,7 +816,10 @@
           <article class="card">
             <div class="card-head">
               <h3>API Documentation</h3>
-              <a class="btn ghost" href="/api-docs" target="_blank" rel="noreferrer">Open Full Docs</a>
+              <div class="actions">
+                <a class="btn ghost" href="/user-guide" target="_blank" rel="noreferrer"><i class="fa-solid fa-circle-info"></i> User Guide</a>
+                <a class="btn ghost" href="/api-docs" target="_blank" rel="noreferrer">Open Full Docs</a>
+              </div>
             </div>
             <p class="hint">Session-based API. Authenticate first with <code>POST /api/auth/login</code>.</p>
             <div class="table-wrap tall">

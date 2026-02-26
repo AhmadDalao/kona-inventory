@@ -1,0 +1,193 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Inventory Admin User Guide</title>
+  <style>
+    body {
+      margin: 0;
+      font-family: "Manrope", "Segoe UI", sans-serif;
+      background: #f4f8fc;
+      color: #123;
+      padding: 20px;
+    }
+
+    .wrap {
+      max-width: 1080px;
+      margin: 0 auto;
+      display: grid;
+      gap: 16px;
+    }
+
+    .card {
+      background: #fff;
+      border: 1px solid #d5e0ec;
+      border-radius: 12px;
+      box-shadow: 0 8px 22px rgba(7, 24, 45, 0.08);
+      padding: 14px;
+    }
+
+    h1, h2, h3 {
+      margin: 0;
+    }
+
+    h2 {
+      font-size: 18px;
+      margin-bottom: 8px;
+      color: #1f3550;
+    }
+
+    h3 {
+      font-size: 15px;
+      margin-top: 12px;
+      margin-bottom: 6px;
+      color: #2f4663;
+    }
+
+    p, li {
+      color: #35506c;
+      line-height: 1.5;
+      font-size: 14px;
+    }
+
+    .muted {
+      color: #5b7389;
+      font-size: 13px;
+    }
+
+    ul, ol {
+      margin: 6px 0 0;
+      padding-left: 20px;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 12px;
+    }
+
+    .chip {
+      display: inline-block;
+      padding: 2px 10px;
+      border-radius: 999px;
+      border: 1px solid #c8d8ea;
+      background: #eef4fb;
+      color: #2f4663;
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    code {
+      font-family: "SFMono-Regular", Menlo, Monaco, Consolas, monospace;
+      background: #eef4fb;
+      border-radius: 6px;
+      padding: 1px 6px;
+      border: 1px solid #d6e3f0;
+      font-size: 12px;
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <section class="card">
+      <h1>Inventory Admin User Guide</h1>
+      <p class="muted">Use this page for operations. Keep API docs for developers.</p>
+      <p><a href="/api-docs">Open Developer API Docs</a></p>
+    </section>
+
+    <section class="card">
+      <h2>Quick Start</h2>
+      <ol>
+        <li>Check <strong>Overview</strong> for low stock and movement activity.</li>
+        <li>Manage SKUs in <strong>Items</strong>.</li>
+        <li>Manage warehouse locations in <strong>Storage Areas</strong>.</li>
+        <li>Apply quantity changes in <strong>Movements</strong>.</li>
+      </ol>
+    </section>
+
+    <section class="card">
+      <h2>Page Guide</h2>
+      <div class="grid">
+        <div>
+          <h3>Overview</h3>
+          <p>Live KPIs and warnings.</p>
+        </div>
+        <div>
+          <h3>Inventory</h3>
+          <p>Current stock by item and by area.</p>
+        </div>
+        <div>
+          <h3>Movements</h3>
+          <p>Receive, issue, transfer, adjust, set.</p>
+        </div>
+        <div>
+          <h3>Storage Areas</h3>
+          <p>Create and manage warehouse zones.</p>
+        </div>
+        <div>
+          <h3>Items</h3>
+          <p>SKU setup, unit, reorder point, and notes.</p>
+        </div>
+        <div>
+          <h3>Analytics</h3>
+          <p>Trend and utilization breakdown.</p>
+        </div>
+        <div>
+          <h3>Trash</h3>
+          <p>Restore deleted records.</p>
+        </div>
+        <div>
+          <h3>Audit Log</h3>
+          <p>Owner-level trace for all write actions.</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>Core Workflows</h2>
+      <h3>Add Item</h3>
+      <ol>
+        <li>Open <strong>Items</strong> and click <strong>Add Item</strong>.</li>
+        <li>Fill SKU, name, category, unit, reorder level.</li>
+        <li>Save.</li>
+      </ol>
+
+      <h3>Receive Stock</h3>
+      <ol>
+        <li>Open <strong>Movements</strong>.</li>
+        <li>Set type to <span class="chip">Receive</span>.</li>
+        <li>Choose item and destination area.</li>
+        <li>Enter quantity and reference like <code>PO-1003</code>.</li>
+        <li>Apply movement.</li>
+      </ol>
+
+      <h3>Transfer Stock</h3>
+      <ol>
+        <li>Set type to <span class="chip">Transfer</span>.</li>
+        <li>Pick source area and destination area.</li>
+        <li>Enter quantity and note.</li>
+      </ol>
+    </section>
+
+    <section class="card">
+      <h2>Roles and Permissions</h2>
+      <ul>
+        <li><strong>Owner</strong>: full access, including settings, audit, and permanent trash delete.</li>
+        <li><strong>Manager</strong>: normal operations and data updates.</li>
+        <li><strong>Viewer</strong>: read-only access.</li>
+      </ul>
+    </section>
+
+    <section class="card">
+      <h2>Troubleshooting</h2>
+      <ul>
+        <li><strong>Can’t edit</strong>: check if read-only mode is enabled in Settings.</li>
+        <li><strong>Record missing</strong>: check Trash and restore.</li>
+        <li><strong>403 error</strong>: role does not have permission for that endpoint.</li>
+        <li><strong>Wrong quantity</strong>: inspect movement history and filters first.</li>
+      </ul>
+    </section>
+  </div>
+</body>
+</html>
