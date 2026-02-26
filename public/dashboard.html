@@ -450,7 +450,54 @@
             </article>
 
             <article class="card">
-              <h3>Admin Notes</h3>
+              <div class="card-head">
+                <h3>Owner Activity Log</h3>
+                <div class="inline-controls">
+                  <select id="admin-activity-user-filter">
+                    <option value="">All Admins</option>
+                  </select>
+                  <select id="admin-activity-action-filter">
+                    <option value="">All Actions</option>
+                    <option value="create">Created</option>
+                    <option value="update">Edited</option>
+                    <option value="delete">Deleted</option>
+                    <option value="restore">Restored</option>
+                  </select>
+                  <select id="admin-activity-range-filter">
+                    <option value="today">Today</option>
+                    <option value="this_month" selected>This Month</option>
+                    <option value="last_month">Last Month</option>
+                    <option value="custom">Custom</option>
+                    <option value="all">All Time</option>
+                  </select>
+                  <label id="admin-activity-custom-start-wrap" class="range-custom hidden">
+                    <span>From</span>
+                    <input id="admin-activity-date-from" type="date" />
+                  </label>
+                  <label id="admin-activity-custom-end-wrap" class="range-custom hidden">
+                    <span>To</span>
+                    <input id="admin-activity-date-to" type="date" />
+                  </label>
+                  <select id="admin-activity-limit">
+                    <option value="50">50</option>
+                    <option value="100" selected>100</option>
+                    <option value="200">200</option>
+                  </select>
+                  <button class="btn ghost" type="button" id="admin-activity-refresh">Refresh</button>
+                </div>
+              </div>
+              <p id="admin-activity-range-label" class="hint range-label">Period: This Month</p>
+              <div class="table-wrap compact">
+                <table>
+                  <thead>
+                    <tr><th>Time</th><th>Admin</th><th>Action</th><th>Entity</th><th>Status</th><th>Summary</th></tr>
+                  </thead>
+                  <tbody id="admin-activity-table"></tbody>
+                </table>
+              </div>
+              <div class="pager" id="admin-activity-pager"></div>
+
+              <h3 class="card-subtitle">Admin Notes</h3>
               <ul class="plain-list">
                 <li>Owner has full control including settings and audit trail.</li>
                 <li>Manager can run inventory operations, but cannot see owner audit log.</li>
@@ -470,10 +517,38 @@
                   <i class="fa-solid fa-magnifying-glass"></i>
                   <input id="trash-search" placeholder="Search deleted records" />
                 </label>
+                <select id="trash-entity-filter">
+                  <option value="">All Records</option>
+                  <option value="items">Items</option>
+                  <option value="storage_areas">Storage Areas</option>
+                </select>
+                <select id="trash-deleted-by-filter">
+                  <option value="">All Users</option>
+                </select>
+                <select id="trash-range-filter">
+                  <option value="today">Today</option>
+                  <option value="this_month" selected>This Month</option>
+                  <option value="last_month">Last Month</option>
+                  <option value="custom">Custom</option>
+                  <option value="all">All Time</option>
+                </select>
+                <label id="trash-custom-start-wrap" class="range-custom hidden">
+                  <span>From</span>
+                  <input id="trash-date-from" type="date" />
+                </label>
+                <label id="trash-custom-end-wrap" class="range-custom hidden">
+                  <span>To</span>
+                  <input id="trash-date-to" type="date" />
+                </label>
                 <button class="btn ghost" id="trash-refresh" type="button">Refresh</button>
               </div>
             </div>
             <p class="hint">Deleted records stay here until restored. Restoring reactivates the item/storage area.</p>
+            <p id="trash-range-label" class="hint range-label">Period: This Month</p>
+            <div class="actions">
+              <span class="badge warn" id="trash-items-count">Deleted Items: 0</span>
+              <span class="badge bad" id="trash-areas-count">Deleted Areas: 0</span>
+            </div>
           </article>
 
           <div class="grid two">
@@ -520,6 +595,13 @@
                   <option value="user">User</option>
                   <option value="settings">Settings</option>
                   <option value="trash">Trash</option>
+                </select>
+                <select id="audit-action-filter">
+                  <option value="">All Actions</option>
+                  <option value="create">Created</option>
+                  <option value="update">Edited</option>
+                  <option value="delete">Deleted</option>
+                  <option value="restore">Restored</option>
                 </select>
                 <select id="audit-range-filter">
                   <option value="today">Today</option>

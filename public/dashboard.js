@@ -15,6 +15,7 @@ const state = {
     storage_areas: [],
   },
   auditRows: [],
+  adminActivityRows: [],
   editAreaId: null,
   editItemId: null,
   editUserId: null,
@@ -24,6 +25,7 @@ const state = {
     movements: { page: 1, pageSize: 50, sortKey: 'created_at', sortDir: 'desc' },
     users: { page: 1, pageSize: 25, sortKey: 'name', sortDir: 'asc' },
     audit: { page: 1, pageSize: 25, sortKey: 'created_at', sortDir: 'desc' },
+    adminActivity: { page: 1, pageSize: 25, sortKey: 'created_at', sortDir: 'desc' },
   },
 };
 
@@ -476,6 +478,26 @@ function applyRangeUI(prefix) {
   return bounds;
 }
 
+function extractYmd(value) {
+  const raw = String(value || '');
+  const match = raw.match(/^\d{4}-\d{2}-\d{2}/);
+  return match ? match[0] : '';
+}
+
+function isDateWithinBounds(value, startYmd, endYmd) {
+  const ymd = extractYmd(value);
+  if (!ymd) {
+    return false;
+  }
+  if (startYmd && ymd < startYmd) {
+    return false;
+  }
+  if (endYmd && ymd > endYmd) {
+    return false;
+  }
+  return true;
+}
+
 function canWrite() {
   if (!state.capabilities.can_write_inventory) {
     return false;
@@ -693,8 +715,49 @@ function wireEvents() {
   byId('users-role-filter').addEventListener('change', loadUsers);
   byId('users-limit').addEventListener('change', loadUsers);
 
+  byId('admin-activity-refresh').addEventListener('click', loadAdminActivity);
+  byId('admin-activity-user-filter').addEventListener('change', () => {
+    state.tables.adminActivity.page = 1;
+    loadAdminActivity();
+  });
+  byId('admin-activity-action-filter').addEventListener('change', () => {
+    state.tables.adminActivity.page = 1;
+    loadAdminActivity();
+  });
+  byId('admin-activity-range-filter').addEventListener('change', () => {
+    state.tables.adminActivity.page = 1;
+    applyRangeUI('admin-activity');
+    loadAdminActivity();
+  });
+  byId('admin-activity-date-from').addEventListener('change', () => {
+    applyRangeUI('admin-activity');
+    loadAdminActivity();
+  });
+  byId('admin-activity-date-to').addEventListener('change', () => {
+    applyRangeUI('admin-activity');
+    loadAdminActivity();
+  });
+  byId('admin-activity-limit').addEventListener('change', () => {
+    state.tables.adminActivity.page = 1;
+    loadAdminActivity();
+  });
+
   byId('trash-refresh').addEventListener('click', loadTrash);
   byId('trash-search').addEventListener('input', debounce(loadTrash, 250));
+  byId('trash-entity-filter').addEventListener('change', renderTrash);
+  byId('trash-deleted-by-filter').addEventListener('change', renderTrash);
+  byId('trash-range-filter').addEventListener('change', () => {
+    applyRangeUI('trash');
+    renderTrash();
+  });
+  byId('trash-date-from').addEventListener('change', () => {
+    applyRangeUI('trash');
+    renderTrash();
+  });
+  byId('trash-date-to').addEventListener('change', () => {
+    applyRangeUI('trash');
+    renderTrash();
+  });
 
   byId('audit-refresh').addEventListener('click', loadAudit);
   byId('audit-search').addEventListener('input', debounce(() => {
@@ -702,6 +765,7 @@ function wireEvents() {
     loadAudit();
   }, 250));
   byId('audit-entity-filter').addEventListener('change', loadAudit);
+  byId('audit-action-filter').addEventListener('change', loadAudit);
   byId('audit-range-filter').addEventListener('change', () => {
     state.tables.audit.page = 1;
     applyRangeUI('audit');
@@ -717,6 +781,8 @@ function wireEvents() {
   });
   byId('audit-limit').addEventListener('change', loadAudit);
 
+  applyRangeUI('admin-activity');
+  applyRangeUI('trash');
   applyRangeUI('movements');
   applyRangeUI('audit');
 
@@ -792,7 +858,9 @@ async function loadAll() {
     jobs.push(loadUsers());
   } else {
     state.users = [];
+    state.adminActivityRows = [];
     renderUsers();
+    renderAdminActivity();
   }
 
   if (canViewTrash()) {
@@ -971,6 +1039,7 @@ async function loadMovements() {
 async function loadUsers() {
   if (!canManageAdmin()) {
     state.users = [];
+    populateAdminActivityUserFilter();
     renderUsers();
     return;
   }
@@ -987,14 +1056,63 @@ async function loadUsers() {
   const suffix = params.toString() ? `?${params.toString()}` : '';
   const payload = await api(`/api/admin/users${suffix}`);
   state.users = payload.data || [];
+  populateAdminActivityUserFilter();
   state.tables.users.page = 1;
   renderUsers();
+
+  if (state.view === 'admin' && canViewAudit()) {
+    await loadAdminActivity();
+  }
+}
+
+function populateAdminActivityUserFilter() {
+  const select = byId('admin-activity-user-filter');
+  if (!select) {
+    return;
+  }
+
+  const selected = String(select.value || '');
+  const users = Array.isArray(state.users) ? state.users : [];
+  const options = ['<option value="">All Admins</option>']
+    .concat(users.map((user) => `<option value="${escapeHtml(user.id)}">${escapeHtml(`${user.name || '-'} (${user.email || '-'})`)}</option>`));
+
+  select.innerHTML = options.join('');
+  if (selected && users.some((user) => String(user.id) === selected)) {
+    select.value = selected;
+  }
+}
+
+async function loadAdminActivity() {
+  if (!canManageAdmin() || !canViewAudit()) {
+    state.adminActivityRows = [];
+    renderAdminActivity();
+    return;
+  }
+
+  const params = new URLSearchParams();
+  const actorId = byId('admin-activity-user-filter').value;
+  const actionScope = byId('admin-activity-action-filter').value;
+  const bounds = applyRangeUI('admin-activity');
+  const limit = byId('admin-activity-limit').value;
+
+  if (actorId) params.set('actor_user_id', actorId);
+  if (actionScope) params.set('action_scope', actionScope);
+  if (bounds.start) params.set('date_from', bounds.start);
+  if (bounds.end) params.set('date_to', bounds.end);
+  if (limit) params.set('limit', limit);
+
+  const suffix = params.toString() ? `?${params.toString()}` : '';
+  const payload = await api(`/api/audit-logs${suffix}`);
+  state.adminActivityRows = payload.data || [];
+  state.tables.adminActivity.page = 1;
+  renderAdminActivity();
 }
 
 async function loadTrash() {
   if (!canViewTrash()) {
     state.trash.items = [];
     state.trash.storage_areas = [];
+    populateTrashDeletedByFilter();
     renderTrash();
     return;
   }
@@ -1002,13 +1120,59 @@ async function loadTrash() {
   const params = new URLSearchParams();
   const search = byId('trash-search').value.trim();
   if (search) params.set('search', search);
-  params.set('limit', '300');
+  params.set('limit', '500');
 
   const payload = await api(`/api/trash?${params.toString()}`);
   const data = payload.data || {};
   state.trash.items = data.items || [];
   state.trash.storage_areas = data.storage_areas || [];
+  populateTrashDeletedByFilter();
+  applyRangeUI('trash');
   renderTrash();
+}
+
+function trashActorToken(row) {
+  return String(row.deleted_by_email || row.deleted_by_name || '').trim().toLowerCase();
+}
+
+function trashActorLabel(row) {
+  const name = String(row.deleted_by_name || '').trim();
+  const email = String(row.deleted_by_email || '').trim();
+  if (name && email) {
+    return `${name} (${email})`;
+  }
+  return name || email || 'Unknown user';
+}
+
+function populateTrashDeletedByFilter() {
+  const select = byId('trash-deleted-by-filter');
+  if (!select) {
+    return;
+  }
+
+  const selected = String(select.value || '');
+  const allRows = [...state.trash.items, ...state.trash.storage_areas];
+  const actorsByToken = new Map();
+
+  for (const row of allRows) {
+    const token = trashActorToken(row);
+    if (!token || actorsByToken.has(token)) {
+      continue;
+    }
+    actorsByToken.set(token, trashActorLabel(row));
+  }
+
+  const options = ['<option value="">All Users</option>']
+    .concat(
+      [...actorsByToken.entries()]
+        .sort((left, right) => left[1].localeCompare(right[1], undefined, { sensitivity: 'base' }))
+        .map(([token, label]) => `<option value="${escapeHtml(token)}">${escapeHtml(label)}</option>`)
+    );
+
+  select.innerHTML = options.join('');
+  if (selected && actorsByToken.has(selected)) {
+    select.value = selected;
+  }
 }
 
 async function loadAudit() {
@@ -1021,11 +1185,13 @@ async function loadAudit() {
   const params = new URLSearchParams();
   const search = byId('audit-search').value.trim();
   const entity = byId('audit-entity-filter').value;
+  const actionScope = byId('audit-action-filter').value;
   const bounds = applyRangeUI('audit');
   const limit = byId('audit-limit').value;
 
   if (search) params.set('search', search);
   if (entity) params.set('entity_type', entity);
+  if (actionScope) params.set('action_scope', actionScope);
   if (bounds.start) params.set('date_from', bounds.start);
   if (bounds.end) params.set('date_to', bounds.end);
   if (limit) params.set('limit', limit);
@@ -1727,22 +1893,100 @@ function renderUsers() {
   renderPager('users-pager', 'users', page.totalRows, page.totalPages);
 }
 
+function renderAdminActivity() {
+  const tbody = byId('admin-activity-table');
+  if (!tbody) {
+    return;
+  }
+
+  tbody.innerHTML = '';
+
+  if (!canManageAdmin() || !canViewAudit()) {
+    tbody.innerHTML = '<tr><td colspan="6">Owner access required.</td></tr>';
+    byId('admin-activity-pager').innerHTML = '';
+    return;
+  }
+
+  const tableState = state.tables.adminActivity;
+  const source = applySorting(state.adminActivityRows, tableState.sortKey, tableState.sortDir);
+  const page = paginate(source, tableState.page, tableState.pageSize);
+  tableState.page = page.page;
+
+  if (!page.rows.length) {
+    tbody.innerHTML = '<tr><td colspan="6">No activity logs for this filter.</td></tr>';
+    renderPager('admin-activity-pager', 'adminActivity', page.totalRows, page.totalPages);
+    return;
+  }
+
+  for (const row of page.rows) {
+    const statusClass = Number(row.status_code) >= 400 ? 'bad' : 'good';
+    const entity = row.entity_id ? `${row.entity_type}:${row.entity_id}` : (row.entity_type || '-');
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td>${escapeHtml(formatDate(row.created_at))}</td>
+      <td>${escapeHtml(row.actor_name || '-')}${row.actor_email ? `<br><span class="hint">${escapeHtml(row.actor_email)}</span>` : ''}</td>
+      <td><span class="type-pill">${escapeHtml(row.action || '-')}</span></td>
+      <td>${escapeHtml(entity)}</td>
+      <td><span class="badge ${statusClass}">${escapeHtml(String(row.status_code || '-'))}</span></td>
+      <td>${escapeHtml(row.summary || '-')}</td>
+    `;
+    tbody.appendChild(tr);
+  }
+
+  renderPager('admin-activity-pager', 'adminActivity', page.totalRows, page.totalPages);
+}
+
 function renderTrash() {
   const itemsBody = byId('trash-items-table');
   const areasBody = byId('trash-areas-table');
+  const itemsCount = byId('trash-items-count');
+  const areasCount = byId('trash-areas-count');
   itemsBody.innerHTML = '';
   areasBody.innerHTML = '';
 
   if (!canViewTrash()) {
     itemsBody.innerHTML = '<tr><td colspan="6">Manager or owner access required.</td></tr>';
     areasBody.innerHTML = '<tr><td colspan="5">Manager or owner access required.</td></tr>';
+    if (itemsCount) {
+      itemsCount.textContent = 'Deleted Items: 0';
+    }
+    if (areasCount) {
+      areasCount.textContent = 'Deleted Areas: 0';
+    }
     return;
   }
 
-  if (!state.trash.items.length) {
-    itemsBody.innerHTML = '<tr><td colspan="6">No deleted items.</td></tr>';
+  const entityFilter = String(byId('trash-entity-filter')?.value || '');
+  const actorFilter = String(byId('trash-deleted-by-filter')?.value || '').trim().toLowerCase();
+  const bounds = applyRangeUI('trash');
+
+  const applyTrashFilters = (rows) => rows.filter((row) => {
+    if (actorFilter && trashActorToken(row) !== actorFilter) {
+      return false;
+    }
+    if ((bounds.start || bounds.end) && !isDateWithinBounds(row.deleted_at, bounds.start, bounds.end)) {
+      return false;
+    }
+    return true;
+  });
+
+  const itemsRows = entityFilter === 'storage_areas' ? [] : applyTrashFilters(state.trash.items);
+  const areaRows = entityFilter === 'items' ? [] : applyTrashFilters(state.trash.storage_areas);
+
+  if (itemsCount) {
+    itemsCount.textContent = `Deleted Items: ${formatNumber(itemsRows.length)}`;
+  }
+  if (areasCount) {
+    areasCount.textContent = `Deleted Areas: ${formatNumber(areaRows.length)}`;
+  }
+
+  if (!itemsRows.length) {
+    const message = entityFilter === 'storage_areas'
+      ? 'Hidden by entity filter.'
+      : 'No deleted items for this filter.';
+    itemsBody.innerHTML = `<tr><td colspan="6">${escapeHtml(message)}</td></tr>`;
   } else {
-    for (const row of state.trash.items) {
+    for (const row of itemsRows) {
       const tr = document.createElement('tr');
       tr.innerHTML = `
         <td>${escapeHtml(row.name)}</td>
@@ -1756,10 +2000,13 @@ function renderTrash() {
     }
   }
 
-  if (!state.trash.storage_areas.length) {
-    areasBody.innerHTML = '<tr><td colspan="5">No deleted storage areas.</td></tr>';
+  if (!areaRows.length) {
+    const message = entityFilter === 'items'
+      ? 'Hidden by entity filter.'
+      : 'No deleted storage areas for this filter.';
+    areasBody.innerHTML = `<tr><td colspan="5">${escapeHtml(message)}</td></tr>`;
   } else {
-    for (const row of state.trash.storage_areas) {
+    for (const row of areaRows) {
       const tr = document.createElement('tr');
       tr.innerHTML = `
         <td>${escapeHtml(row.code)}</td>
@@ -1898,6 +2145,7 @@ function renderPager(containerId, tableKey, totalRows, totalPages) {
     levels: renderLevels,
     movements: renderMovements,
     users: renderUsers,
+    adminActivity: renderAdminActivity,
     audit: renderAudit,
   }[tableKey];
 

@@ -80,6 +80,27 @@ class AuditLogRepository
             $params[':action'] = trim((string)$filters['action']);
         }
 
+        if (!empty($filters['action_scope'])) {
+            $scope = strtolower(trim((string)$filters['action_scope']));
+            $pattern = match ($scope) {
+                'create' => '%.create',
+                'update', 'edit' => '%.update',
+                'delete' => '%.delete',
+                'restore' => '%.restore',
+                default => '',
+            };
+            if ($pattern !== '') {
+                $conditions[] = 'action LIKE :action_scope';
+                $params[':action_scope'] = $pattern;
+            }
+        }
+
+        $actorUserId = (int)($filters['actor_user_id'] ?? 0);
+        if ($actorUserId > 0) {
+            $conditions[] = 'actor_user_id = :actor_user_id';
+            $params[':actor_user_id'] = $actorUserId;
+        }
+
         if (!empty($filters['date_from'])) {
             $conditions[] = 'date(created_at) >= date(:date_from)';
             $params[':date_from'] = (string)$filters['date_from'];

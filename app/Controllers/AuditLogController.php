@@ -22,6 +22,8 @@ class AuditLogController
             'search' => trim((string)$request->query('search', '')),
             'entity_type' => trim((string)$request->query('entity_type', '')),
             'action' => trim((string)$request->query('action', '')),
+            'action_scope' => trim((string)$request->query('action_scope', '')),
+            'actor_user_id' => (int)$request->query('actor_user_id', 0),
             'date_from' => trim((string)$request->query('date_from', '')),
             'date_to' => trim((string)$request->query('date_to', '')),
             'limit' => (int)$request->query('limit', 200),
