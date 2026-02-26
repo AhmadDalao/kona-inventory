@@ -11,6 +11,7 @@ const state = {
   levelsRows: [],
   movementsRows: [],
   docsRows: [],
+  lowStockRows: [],
   trash: {
     items: [],
     storage_areas: [],
@@ -21,9 +22,17 @@ const state = {
   tables: {
     levels: { page: 1, pageSize: 25, sortKey: 'item_name', sortDir: 'asc' },
     movements: { page: 1, pageSize: 50, sortKey: 'created_at', sortDir: 'desc' },
+    areas: { page: 1, pageSize: 25, sortKey: 'name', sortDir: 'asc' },
+    items: { page: 1, pageSize: 25, sortKey: 'name', sortDir: 'asc' },
     users: { page: 1, pageSize: 10, sortKey: 'name', sortDir: 'asc' },
     audit: { page: 1, pageSize: 100, sortKey: 'created_at', sortDir: 'desc' },
     adminActivity: { page: 1, pageSize: 100, sortKey: 'created_at', sortDir: 'desc' },
+    trashItems: { page: 1, pageSize: 10, sortKey: 'deleted_at', sortDir: 'desc' },
+    trashAreas: { page: 1, pageSize: 10, sortKey: 'deleted_at', sortDir: 'desc' },
+    docs: { page: 1, pageSize: 25, sortKey: 'path', sortDir: 'asc' },
+    lowStock: { page: 1, pageSize: 8, sortKey: 'total_quantity', sortDir: 'asc' },
+    topMoved: { page: 1, pageSize: 8, sortKey: 'movement_count', sortDir: 'desc' },
+    storageUtilization: { page: 1, pageSize: 10, sortKey: 'total_quantity', sortDir: 'desc' },
   },
 };
 
@@ -1681,19 +1690,41 @@ function wireEvents() {
     loadAdminActivity();
   });
 
-  byId('trash-refresh').addEventListener('click', loadTrash);
-  byId('trash-search').addEventListener('input', debounce(loadTrash, 250));
-  byId('trash-entity-filter').addEventListener('change', renderTrash);
-  byId('trash-deleted-by-filter').addEventListener('change', renderTrash);
+  byId('trash-refresh').addEventListener('click', () => {
+    state.tables.trashItems.page = 1;
+    state.tables.trashAreas.page = 1;
+    loadTrash();
+  });
+  byId('trash-search').addEventListener('input', debounce(() => {
+    state.tables.trashItems.page = 1;
+    state.tables.trashAreas.page = 1;
+    loadTrash();
+  }, 250));
+  byId('trash-entity-filter').addEventListener('change', () => {
+    state.tables.trashItems.page = 1;
+    state.tables.trashAreas.page = 1;
+    renderTrash();
+  });
+  byId('trash-deleted-by-filter').addEventListener('change', () => {
+    state.tables.trashItems.page = 1;
+    state.tables.trashAreas.page = 1;
+    renderTrash();
+  });
   byId('trash-range-filter').addEventListener('change', () => {
+    state.tables.trashItems.page = 1;
+    state.tables.trashAreas.page = 1;
     applyRangeUI('trash');
     renderTrash();
   });
   byId('trash-date-from').addEventListener('change', () => {
+    state.tables.trashItems.page = 1;
+    state.tables.trashAreas.page = 1;
     applyRangeUI('trash');
     renderTrash();
   });
   byId('trash-date-to').addEventListener('change', () => {
+    state.tables.trashItems.page = 1;
+    state.tables.trashAreas.page = 1;
     applyRangeUI('trash');
     renderTrash();
   });
@@ -1847,6 +1878,9 @@ async function loadMeta() {
   const pageSize = Number(state.settings.table_page_size || 25);
   state.tables.levels.pageSize = pageSize;
   state.tables.movements.pageSize = Math.max(20, pageSize);
+  state.tables.areas.pageSize = pageSize;
+  state.tables.items.pageSize = pageSize;
+  state.tables.docs.pageSize = pageSize;
   byId('levels-page-size').value = String(pageSize);
   byId('movements-page-size').value = String(Math.max(20, pageSize));
 
@@ -1969,13 +2003,17 @@ function syncSiteControlPreview() {
 async function loadSummary() {
   const payload = await api('/api/dashboard/summary');
   state.summary = payload.summary || {};
+  state.lowStockRows = payload.low_stock || [];
+  state.tables.lowStock.page = 1;
   renderSummary(payload.summary || {});
-  renderLowStock(payload.low_stock || []);
+  renderLowStock(state.lowStockRows);
 }
 
 async function loadAnalytics() {
   const payload = await api('/api/dashboard/analytics?days=14');
   state.analytics = payload || {};
+  state.tables.topMoved.page = 1;
+  state.tables.storageUtilization.page = 1;
   renderStockByArea(payload.stock_by_area || []);
   renderTrend(payload.movement_trend || []);
   renderTopMoved(payload.top_moved_items || []);
@@ -2275,13 +2313,18 @@ function renderInventoryHealth() {
 function renderLowStock(rows) {
   const tbody = byId('low-stock-table');
   tbody.innerHTML = '';
+  const tableState = state.tables.lowStock;
+  const source = applySorting(rows, tableState.sortKey, tableState.sortDir);
+  const page = paginate(source, tableState.page, tableState.pageSize);
+  tableState.page = page.page;
 
-  if (!rows.length) {
+  if (!page.rows.length) {
     tbody.innerHTML = '<tr><td colspan="4">No low stock alerts.</td></tr>';
+    renderPager('low-stock-pager', 'lowStock', page.totalRows, page.totalPages);
     return;
   }
 
-  for (const row of rows) {
+  for (const row of page.rows) {
     const tr = document.createElement('tr');
     tr.innerHTML = `
       <td>${escapeHtml(row.name)}</td>
@@ -2291,6 +2334,8 @@ function renderLowStock(rows) {
     `;
     tbody.appendChild(tr);
   }
+
+  renderPager('low-stock-pager', 'lowStock', page.totalRows, page.totalPages);
 }
 
 function renderStockByArea(rows) {
@@ -2359,13 +2404,18 @@ function renderTrend(rows) {
 function renderTopMoved(rows) {
   const tbody = byId('top-moved-table');
   tbody.innerHTML = '';
+  const tableState = state.tables.topMoved;
+  const source = applySorting(rows, tableState.sortKey, tableState.sortDir);
+  const page = paginate(source, tableState.page, tableState.pageSize);
+  tableState.page = page.page;
 
-  if (!rows.length) {
+  if (!page.rows.length) {
     tbody.innerHTML = '<tr><td colspan="4">No movement history yet.</td></tr>';
+    renderPager('top-moved-pager', 'topMoved', page.totalRows, page.totalPages);
     return;
   }
 
-  for (const row of rows) {
+  for (const row of page.rows) {
     const tr = document.createElement('tr');
     tr.innerHTML = `
       <td>${escapeHtml(row.name)}</td>
@@ -2375,6 +2425,8 @@ function renderTopMoved(rows) {
     `;
     tbody.appendChild(tr);
   }
+
+  renderPager('top-moved-pager', 'topMoved', page.totalRows, page.totalPages);
 }
 
 function renderCategoryMix(rows) {
@@ -2407,13 +2459,18 @@ function renderCategoryMix(rows) {
 function renderStorageUtilization(rows) {
   const tbody = byId('storage-utilization-table');
   tbody.innerHTML = '';
+  const tableState = state.tables.storageUtilization;
+  const source = applySorting(rows, tableState.sortKey, tableState.sortDir);
+  const page = paginate(source, tableState.page, tableState.pageSize);
+  tableState.page = page.page;
 
-  if (!rows.length) {
+  if (!page.rows.length) {
     tbody.innerHTML = '<tr><td colspan="3">No utilization data.</td></tr>';
+    renderPager('storage-utilization-pager', 'storageUtilization', page.totalRows, page.totalPages);
     return;
   }
 
-  for (const row of rows) {
+  for (const row of page.rows) {
     const tr = document.createElement('tr');
     tr.innerHTML = `
       <td>${escapeHtml(row.code)} - ${escapeHtml(row.name)}</td>
@@ -2422,6 +2479,8 @@ function renderStorageUtilization(rows) {
     `;
     tbody.appendChild(tr);
   }
+
+  renderPager('storage-utilization-pager', 'storageUtilization', page.totalRows, page.totalPages);
 }
 
 function renderMovementOptions() {
@@ -2472,15 +2531,20 @@ function renderAreaFilter() {
 }
 
 function renderAreas() {
+  const tableState = state.tables.areas;
   const tbody = byId('areas-table');
   tbody.innerHTML = '';
+  const source = applySorting(state.areas, tableState.sortKey, tableState.sortDir);
+  const page = paginate(source, tableState.page, tableState.pageSize);
+  tableState.page = page.page;
 
-  if (!state.areas.length) {
+  if (!page.rows.length) {
     tbody.innerHTML = '<tr><td colspan="4">No storage areas found.</td></tr>';
+    renderPager('areas-pager', 'areas', page.totalRows, page.totalPages);
     return;
   }
 
-  for (const area of state.areas) {
+  for (const area of page.rows) {
     const active = Number(area.is_active) === 1;
     const tr = document.createElement('tr');
     tr.innerHTML = `
@@ -2543,19 +2607,26 @@ function renderAreas() {
       }
     });
   });
+
+  renderPager('areas-pager', 'areas', page.totalRows, page.totalPages);
 }
 
 function renderItems() {
+  const tableState = state.tables.items;
   const tbody = byId('items-table');
   tbody.innerHTML = '';
+  const source = applySorting(state.items, tableState.sortKey, tableState.sortDir);
+  const page = paginate(source, tableState.page, tableState.pageSize);
+  tableState.page = page.page;
 
-  if (!state.items.length) {
+  if (!page.rows.length) {
     tbody.innerHTML = '<tr><td colspan="8">No items found.</td></tr>';
+    renderPager('items-pager', 'items', page.totalRows, page.totalPages);
     return;
   }
 
   const onGroundArea = findOnGroundArea();
-  for (const item of state.items) {
+  for (const item of page.rows) {
     const active = Number(item.is_active) === 1;
     const onGroundQty = onGroundArea ? onGroundQuantityForItem(item.id) : null;
     const tr = document.createElement('tr');
@@ -2623,6 +2694,8 @@ function renderItems() {
       }
     });
   });
+
+  renderPager('items-pager', 'items', page.totalRows, page.totalPages);
 }
 
 function getLevelsViewMode() {
@@ -3139,6 +3212,8 @@ function renderAdminActivity() {
 }
 
 function renderTrash() {
+  const itemsTableState = state.tables.trashItems;
+  const areasTableState = state.tables.trashAreas;
   const itemsBody = byId('trash-items-table');
   const areasBody = byId('trash-areas-table');
   const itemsCount = byId('trash-items-count');
@@ -3155,6 +3230,8 @@ function renderTrash() {
     if (areasCount) {
       areasCount.textContent = 'Deleted Areas: 0';
     }
+    byId('trash-items-pager').innerHTML = '';
+    byId('trash-areas-pager').innerHTML = '';
     return;
   }
 
@@ -3174,6 +3251,12 @@ function renderTrash() {
 
   const itemsRows = entityFilter === 'storage_areas' ? [] : applyTrashFilters(state.trash.items);
   const areaRows = entityFilter === 'items' ? [] : applyTrashFilters(state.trash.storage_areas);
+  const itemsSource = applySorting(itemsRows, itemsTableState.sortKey, itemsTableState.sortDir);
+  const areasSource = applySorting(areaRows, areasTableState.sortKey, areasTableState.sortDir);
+  const itemsPage = paginate(itemsSource, itemsTableState.page, itemsTableState.pageSize);
+  const areasPage = paginate(areasSource, areasTableState.page, areasTableState.pageSize);
+  itemsTableState.page = itemsPage.page;
+  areasTableState.page = areasPage.page;
 
   if (itemsCount) {
     itemsCount.textContent = `Deleted Items: ${formatNumber(itemsRows.length)}`;
@@ -3182,13 +3265,13 @@ function renderTrash() {
     areasCount.textContent = `Deleted Areas: ${formatNumber(areaRows.length)}`;
   }
 
-  if (!itemsRows.length) {
+  if (!itemsPage.rows.length) {
     const message = entityFilter === 'storage_areas'
       ? 'Hidden by entity filter.'
       : 'No deleted items for this filter.';
     itemsBody.innerHTML = `<tr><td colspan="6">${escapeHtml(message)}</td></tr>`;
   } else {
-    for (const row of itemsRows) {
+    for (const row of itemsPage.rows) {
       const tr = document.createElement('tr');
       tr.innerHTML = `
         <td>${escapeHtml(row.name)}</td>
@@ -3207,13 +3290,13 @@ function renderTrash() {
     }
   }
 
-  if (!areaRows.length) {
+  if (!areasPage.rows.length) {
     const message = entityFilter === 'items'
       ? 'Hidden by entity filter.'
       : 'No deleted storage areas for this filter.';
     areasBody.innerHTML = `<tr><td colspan="5">${escapeHtml(message)}</td></tr>`;
   } else {
-    for (const row of areaRows) {
+    for (const row of areasPage.rows) {
       const tr = document.createElement('tr');
       tr.innerHTML = `
         <td>${escapeHtml(row.code)}</td>
@@ -3244,6 +3327,9 @@ function renderTrash() {
   areasBody.querySelectorAll('[data-delete-area]').forEach((button) => {
     button.addEventListener('click', () => permanentlyDeleteFromTrash('storage_areas', Number(button.dataset.deleteArea)));
   });
+
+  renderPager('trash-items-pager', 'trashItems', itemsPage.totalRows, itemsPage.totalPages);
+  renderPager('trash-areas-pager', 'trashAreas', areasPage.totalRows, areasPage.totalPages);
 }
 
 async function restoreFromTrash(entity, id) {
@@ -3358,13 +3444,18 @@ function renderAudit() {
 function renderDocs() {
   const tbody = byId('api-docs-table');
   tbody.innerHTML = '';
+  const tableState = state.tables.docs;
+  const source = applySorting(state.docsRows, tableState.sortKey, tableState.sortDir);
+  const page = paginate(source, tableState.page, tableState.pageSize);
+  tableState.page = page.page;
 
-  if (!state.docsRows.length) {
+  if (!page.rows.length) {
     tbody.innerHTML = '<tr><td colspan="3">API docs unavailable.</td></tr>';
+    renderPager('docs-pager', 'docs', page.totalRows, page.totalPages);
     return;
   }
 
-  for (const endpoint of state.docsRows) {
+  for (const endpoint of page.rows) {
     const tr = document.createElement('tr');
     tr.innerHTML = `
       <td><strong>${escapeHtml(endpoint.method)}</strong></td>
@@ -3373,6 +3464,8 @@ function renderDocs() {
     `;
     tbody.appendChild(tr);
   }
+
+  renderPager('docs-pager', 'docs', page.totalRows, page.totalPages);
 }
 
 function renderPager(containerId, tableKey, totalRows, totalPages) {
@@ -3394,9 +3487,17 @@ function renderPager(containerId, tableKey, totalRows, totalPages) {
   const rerender = {
     levels: renderLevels,
     movements: renderMovements,
+    areas: renderAreas,
+    items: renderItems,
     users: renderUsers,
     adminActivity: renderAdminActivity,
+    trashItems: renderTrash,
+    trashAreas: renderTrash,
     audit: renderAudit,
+    docs: renderDocs,
+    lowStock: () => renderLowStock(state.lowStockRows || []),
+    topMoved: () => renderTopMoved(state.analytics.top_moved_items || []),
+    storageUtilization: () => renderStorageUtilization(state.analytics.stock_by_area || []),
   }[tableKey];
 
   const prev = container.querySelector(`[data-pager-prev="${tableKey}"]`);
