@@ -28,7 +28,7 @@ Modern internal inventory platform with module-based dashboard, analytics, and a
   - User management (owner)
   - Trash restore for deleted items/storage areas
   - Owner audit log for all write actions
-  - Site settings
+  - Site settings (theme, palette, notifications, read-only policy)
   - Read-only mode
   - Negative stock policy toggle
 - API docs:

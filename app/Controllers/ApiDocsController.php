@@ -25,7 +25,7 @@ class ApiDocsController
                     ['method' => 'GET', 'path' => '/api/dashboard/summary', 'description' => 'KPI summary + low stock list'],
                     ['method' => 'GET', 'path' => '/api/dashboard/analytics', 'description' => 'Trend and analysis datasets'],
                     ['method' => 'GET', 'path' => '/api/settings', 'description' => 'Current app settings'],
-                    ['method' => 'PATCH', 'path' => '/api/settings', 'description' => 'Update app settings'],
+                    ['method' => 'PATCH', 'path' => '/api/settings', 'description' => 'Update site/theme/notification settings'],
                     ['method' => 'GET', 'path' => '/api/trash', 'description' => 'List deleted records (items and storage areas)'],
                     ['method' => 'POST', 'path' => '/api/trash/{entity}/{id}/restore', 'description' => 'Restore deleted record from trash'],
                     ['method' => 'GET', 'path' => '/api/audit-logs', 'description' => 'Owner-only audit trail of write actions'],

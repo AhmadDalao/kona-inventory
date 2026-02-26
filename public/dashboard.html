@@ -511,22 +511,84 @@
         </section>
 
         <section class="view" data-view-panel="settings">
-          <article class="card">
-            <h3>System Settings</h3>
-            <form id="settings-form" class="form-grid settings-grid">
-              <label>Site Name <input id="set-site-name" required /></label>
-              <label>Tagline <input id="set-site-tagline" /></label>
-              <label>Default Currency <input id="set-default-currency" maxlength="5" /></label>
-              <label>Low Stock Limit <input id="set-low-stock-limit" type="number" min="1" max="200" /></label>
-              <label>Table Page Size <input id="set-table-page-size" type="number" min="10" max="100" /></label>
-              <label class="inline-check"><input type="checkbox" id="set-site-open" /> Site Open</label>
-              <label class="inline-check"><input type="checkbox" id="set-read-only" /> Read-only Mode</label>
-              <label class="inline-check"><input type="checkbox" id="set-allow-negative" /> Allow Negative Stock</label>
-              <div class="actions">
-                <button class="btn primary" type="submit">Save Settings</button>
+          <div class="grid two">
+            <article class="card">
+              <h3>General Settings</h3>
+              <form id="settings-form" class="form-grid settings-grid">
+                <label>Company Name <input id="set-company-name" required /></label>
+                <label>Site Name <input id="set-site-name" required /></label>
+                <label>Tagline <input id="set-site-tagline" /></label>
+                <label>Timezone <input id="set-timezone" placeholder="America/New_York" /></label>
+                <label>Default Currency <input id="set-default-currency" maxlength="5" /></label>
+                <label>Low Stock Limit <input id="set-low-stock-limit" type="number" min="1" max="200" /></label>
+                <label>Table Page Size <input id="set-table-page-size" type="number" min="10" max="100" /></label>
+                <label>Theme Mode
+                  <select id="set-theme-mode">
+                    <option value="light">Light</option>
+                    <option value="dark">Dark</option>
+                    <option value="slate">Slate</option>
+                  </select>
+                </label>
+                <label>Theme Palette
+                  <select id="set-theme-palette">
+                    <option value="material-indigo">Material Indigo</option>
+                    <option value="material-cyan">Material Cyan</option>
+                    <option value="material-emerald">Material Emerald</option>
+                    <option value="material-rose">Material Rose</option>
+                  </select>
+                </label>
+                <label>Dashboard Style
+                  <select id="set-dashboard-style">
+                    <option value="kona">Kona</option>
+                    <option value="classic">Classic</option>
+                  </select>
+                </label>
+                <label>Brand Primary <input id="set-brand-primary" placeholder="#5B3DF5" /></label>
+                <label>Icon Primary <input id="set-icon-primary" placeholder="#4332C6" /></label>
+                <label>Icon Muted <input id="set-icon-muted" placeholder="#667085" /></label>
+                <label>Icon Accent <input id="set-icon-accent" placeholder="#248DFF" /></label>
+                <label class="inline-check"><input type="checkbox" id="set-site-open" /> Site Open</label>
+                <label class="inline-check"><input type="checkbox" id="set-read-only" /> Read-only Mode</label>
+                <label class="inline-check"><input type="checkbox" id="set-allow-negative" /> Allow Negative Stock</label>
+                <label class="inline-check"><input type="checkbox" id="set-notify-email" /> Email Notifications</label>
+                <label class="inline-check"><input type="checkbox" id="set-notify-inapp" /> In-app Notifications</label>
+                <label class="inline-check"><input type="checkbox" id="set-notify-whatsapp" /> WhatsApp Notifications</label>
+                <div class="actions">
+                  <button class="btn primary" type="submit">Save Settings</button>
+                </div>
+              </form>
+            </article>
+
+            <article class="card">
+              <h3>Live Theme Preview</h3>
+              <p class="hint">These chips reflect your current palette and status controls.</p>
+              <div class="settings-preview" id="settings-preview">
+                <div class="preview-row">
+                  <span class="preview-label">Primary</span>
+                  <span class="preview-dot" id="preview-primary"></span>
+                </div>
+                <div class="preview-row">
+                  <span class="preview-label">Icon Primary</span>
+                  <span class="preview-dot" id="preview-icon-primary"></span>
+                </div>
+                <div class="preview-row">
+                  <span class="preview-label">Icon Muted</span>
+                  <span class="preview-dot" id="preview-icon-muted"></span>
+                </div>
+                <div class="preview-row">
+                  <span class="preview-label">Icon Accent</span>
+                  <span class="preview-dot" id="preview-icon-accent"></span>
+                </div>
               </div>
-            </form>
-          </article>
+
+              <h3>Rules</h3>
+              <ul class="plain-list">
+                <li>Read-only mode blocks managers from write endpoints.</li>
+                <li>Owner is always allowed to override read-only lock.</li>
+                <li>Every settings update is recorded in owner audit log.</li>
+              </ul>
+            </article>
+          </div>
         </section>
 
         <section class="view" data-view-panel="docs">

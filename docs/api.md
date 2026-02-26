@@ -26,10 +26,22 @@ Authentication model:
 - `PATCH /api/settings`
 
 Patch body keys:
+- `company_name` string
 - `site_name` string
 - `site_tagline` string
 - `site_open` boolean
 - `read_only_mode` boolean
+- `timezone` string
+- `notify_email` boolean
+- `notify_inapp` boolean
+- `notify_whatsapp` boolean
+- `theme_mode` enum: `light|dark|slate`
+- `theme_palette` enum: `material-indigo|material-cyan|material-emerald|material-rose`
+- `dashboard_style` enum: `kona|classic`
+- `brand_primary` hex color `#RRGGBB`
+- `icon_primary` hex color `#RRGGBB`
+- `icon_muted` hex color `#RRGGBB`
+- `icon_accent` hex color `#RRGGBB`
 - `default_currency` string
 - `dashboard_low_stock_limit` integer 1-200
 - `table_page_size` integer 10-100

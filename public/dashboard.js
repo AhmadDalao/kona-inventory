@@ -80,6 +80,37 @@ const viewMeta = {
   },
 };
 
+const THEME_PALETTES = {
+  'material-indigo': {
+    primary: '#5B3DF5',
+    primary2: '#4332C6',
+    iconPrimary: '#4332C6',
+    iconMuted: '#667085',
+    iconAccent: '#248DFF',
+  },
+  'material-cyan': {
+    primary: '#0E7490',
+    primary2: '#155E75',
+    iconPrimary: '#155E75',
+    iconMuted: '#667085',
+    iconAccent: '#06B6D4',
+  },
+  'material-emerald': {
+    primary: '#047857',
+    primary2: '#065F46',
+    iconPrimary: '#065F46',
+    iconMuted: '#667085',
+    iconAccent: '#10B981',
+  },
+  'material-rose': {
+    primary: '#BE123C',
+    primary2: '#9F1239',
+    iconPrimary: '#9F1239',
+    iconMuted: '#667085',
+    iconAccent: '#F43F5E',
+  },
+};
+
 const byId = (id) => document.getElementById(id);
 
 async function api(path, options = {}) {
@@ -312,6 +343,24 @@ function wireEvents() {
   byId('move-type').addEventListener('change', updateMovementFields);
 
   byId('settings-form').addEventListener('submit', onSaveSettings);
+  ['set-theme-mode', 'set-theme-palette', 'set-dashboard-style', 'set-brand-primary', 'set-icon-primary', 'set-icon-muted', 'set-icon-accent']
+    .forEach((id) => {
+      const input = byId(id);
+      if (!input) {
+        return;
+      }
+
+      input.addEventListener('change', () => {
+        state.settings.theme_mode = byId('set-theme-mode').value;
+        state.settings.theme_palette = byId('set-theme-palette').value;
+        state.settings.dashboard_style = byId('set-dashboard-style').value;
+        state.settings.brand_primary = byId('set-brand-primary').value.trim();
+        state.settings.icon_primary = byId('set-icon-primary').value.trim();
+        state.settings.icon_muted = byId('set-icon-muted').value.trim();
+        state.settings.icon_accent = byId('set-icon-accent').value.trim();
+        applyThemeSettings();
+      });
+    });
 
   byId('user-form').addEventListener('submit', onSaveUser);
   byId('user-reset').addEventListener('click', resetUserForm);
@@ -471,13 +520,14 @@ async function loadMeta() {
   state.settings = payload.settings || {};
   state.capabilities = payload.capabilities || {};
 
-  const siteName = state.settings.site_name || 'Inventory Management System';
+  const siteName = state.settings.site_name || state.settings.company_name || 'Inventory Management System';
   const siteTagline = state.settings.site_tagline || 'Track inventory, movements, controls, and admin actions in one place.';
 
   byId('site-name').textContent = siteName;
   byId('site-tagline').textContent = siteTagline;
   byId('auth-site-name').textContent = siteName;
   byId('auth-site-tagline').textContent = siteTagline;
+  applyThemeSettings();
 
   const pageSize = Number(state.settings.table_page_size || 25);
   state.tables.levels.pageSize = pageSize;
@@ -494,14 +544,75 @@ async function loadMeta() {
 }
 
 function hydrateSettingsForm() {
+  byId('set-company-name').value = state.settings.company_name || state.settings.site_name || '';
   byId('set-site-name').value = state.settings.site_name || '';
   byId('set-site-tagline').value = state.settings.site_tagline || '';
+  byId('set-timezone').value = state.settings.timezone || 'America/New_York';
   byId('set-default-currency').value = state.settings.default_currency || 'USD';
   byId('set-low-stock-limit').value = Number(state.settings.dashboard_low_stock_limit || 25);
   byId('set-table-page-size').value = Number(state.settings.table_page_size || 25);
+  byId('set-theme-mode').value = state.settings.theme_mode || 'light';
+  byId('set-theme-palette').value = state.settings.theme_palette || 'material-indigo';
+  byId('set-dashboard-style').value = state.settings.dashboard_style || 'kona';
+  byId('set-brand-primary').value = state.settings.brand_primary || '';
+  byId('set-icon-primary').value = state.settings.icon_primary || '';
+  byId('set-icon-muted').value = state.settings.icon_muted || '';
+  byId('set-icon-accent').value = state.settings.icon_accent || '';
   byId('set-site-open').checked = !!state.settings.site_open;
   byId('set-read-only').checked = !!state.settings.read_only_mode;
   byId('set-allow-negative').checked = !!state.settings.allow_negative_stock;
+  byId('set-notify-email').checked = !!state.settings.notify_email;
+  byId('set-notify-inapp').checked = !!state.settings.notify_inapp;
+  byId('set-notify-whatsapp').checked = !!state.settings.notify_whatsapp;
+  syncThemePreview();
+}
+
+function applyThemeSettings() {
+  const paletteKey = String(state.settings.theme_palette || 'material-indigo');
+  const palette = THEME_PALETTES[paletteKey] || THEME_PALETTES['material-indigo'];
+
+  const brandPrimary = normalizeHexColor(state.settings.brand_primary, palette.primary);
+  const iconPrimary = normalizeHexColor(state.settings.icon_primary, palette.iconPrimary);
+  const iconMuted = normalizeHexColor(state.settings.icon_muted, palette.iconMuted);
+  const iconAccent = normalizeHexColor(state.settings.icon_accent, palette.iconAccent);
+  const primary2 = darkenHex(brandPrimary, 0.2) || palette.primary2;
+
+  document.documentElement.style.setProperty('--primary', brandPrimary);
+  document.documentElement.style.setProperty('--primary-2', primary2);
+  document.documentElement.style.setProperty('--icon-primary', iconPrimary);
+  document.documentElement.style.setProperty('--icon-muted', iconMuted);
+  document.documentElement.style.setProperty('--icon-accent', iconAccent);
+
+  const mode = String(state.settings.theme_mode || 'light');
+  document.body.classList.remove('theme-dark', 'theme-slate');
+  if (mode === 'dark') {
+    document.body.classList.add('theme-dark');
+  } else if (mode === 'slate') {
+    document.body.classList.add('theme-slate');
+  }
+
+  document.body.dataset.dashboardStyle = String(state.settings.dashboard_style || 'kona');
+  syncThemePreview();
+}
+
+function syncThemePreview() {
+  const paletteKey = String(state.settings.theme_palette || 'material-indigo');
+  const palette = THEME_PALETTES[paletteKey] || THEME_PALETTES['material-indigo'];
+
+  const primary = normalizeHexColor(state.settings.brand_primary, palette.primary);
+  const iconPrimary = normalizeHexColor(state.settings.icon_primary, palette.iconPrimary);
+  const iconMuted = normalizeHexColor(state.settings.icon_muted, palette.iconMuted);
+  const iconAccent = normalizeHexColor(state.settings.icon_accent, palette.iconAccent);
+
+  const dotPrimary = byId('preview-primary');
+  const dotIconPrimary = byId('preview-icon-primary');
+  const dotIconMuted = byId('preview-icon-muted');
+  const dotIconAccent = byId('preview-icon-accent');
+
+  if (dotPrimary) dotPrimary.style.background = primary;
+  if (dotIconPrimary) dotIconPrimary.style.background = iconPrimary;
+  if (dotIconMuted) dotIconMuted.style.background = iconMuted;
+  if (dotIconAccent) dotIconAccent.style.background = iconAccent;
 }
 
 async function loadSummary() {
@@ -1739,14 +1850,26 @@ async function onSaveSettings(event) {
   }
 
   const payload = {
+    company_name: byId('set-company-name').value.trim(),
     site_name: byId('set-site-name').value.trim(),
     site_tagline: byId('set-site-tagline').value.trim(),
+    timezone: byId('set-timezone').value.trim(),
     default_currency: byId('set-default-currency').value.trim(),
     dashboard_low_stock_limit: Number(byId('set-low-stock-limit').value || 25),
     table_page_size: Number(byId('set-table-page-size').value || 25),
+    theme_mode: byId('set-theme-mode').value,
+    theme_palette: byId('set-theme-palette').value,
+    dashboard_style: byId('set-dashboard-style').value,
+    brand_primary: byId('set-brand-primary').value.trim(),
+    icon_primary: byId('set-icon-primary').value.trim(),
+    icon_muted: byId('set-icon-muted').value.trim(),
+    icon_accent: byId('set-icon-accent').value.trim(),
     site_open: byId('set-site-open').checked,
     read_only_mode: byId('set-read-only').checked,
     allow_negative_stock: byId('set-allow-negative').checked,
+    notify_email: byId('set-notify-email').checked,
+    notify_inapp: byId('set-notify-inapp').checked,
+    notify_whatsapp: byId('set-notify-whatsapp').checked,
   };
 
   try {
@@ -1757,6 +1880,7 @@ async function onSaveSettings(event) {
 
     state.settings = response.data || state.settings;
     hydrateSettingsForm();
+    applyThemeSettings();
     applyPermissionsUI();
     await Promise.all([loadSummary(), loadAnalytics()]);
     if (canViewAudit()) {
@@ -1830,6 +1954,30 @@ async function reloadMasterData() {
 
 async function refreshOperationalData() {
   await Promise.all([loadSummary(), loadAnalytics(), loadLevels(), loadMovements()]);
+}
+
+function normalizeHexColor(value, fallback) {
+  const raw = String(value || '').trim().toUpperCase();
+  if (/^#[0-9A-F]{6}$/.test(raw)) {
+    return raw;
+  }
+
+  return String(fallback || '#5B3DF5').toUpperCase();
+}
+
+function darkenHex(hex, ratio = 0.15) {
+  const safe = normalizeHexColor(hex, '#5B3DF5');
+  const amount = Math.max(0, Math.min(1, Number(ratio)));
+
+  const r = parseInt(safe.slice(1, 3), 16);
+  const g = parseInt(safe.slice(3, 5), 16);
+  const b = parseInt(safe.slice(5, 7), 16);
+  if (![r, g, b].every(Number.isFinite)) {
+    return null;
+  }
+
+  const toHex = (value) => Math.max(0, Math.min(255, Math.round(value))).toString(16).padStart(2, '0').toUpperCase();
+  return `#${toHex(r * (1 - amount))}${toHex(g * (1 - amount))}${toHex(b * (1 - amount))}`;
 }
 
 async function refreshViewData(view, force = false) {
