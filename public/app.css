@@ -802,8 +802,149 @@ body.sidebar-collapsed .nav-btn {
   border: 1px solid rgba(91, 61, 245, 0.22);
 }
 
+.movement-card {
+  gap: 12px;
+}
+
+.movement-card-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.movement-card-head h3 {
+  font-size: 20px;
+}
+
 .movement-grid {
+  grid-template-columns: 1fr;
+  gap: 12px;
+}
+
+.movement-form-shell {
+  border: 1px solid var(--line-2);
+  border-radius: 14px;
+  padding: 12px;
+  background: var(--panel-soft);
+}
+
+.movement-block {
+  border: 1px solid var(--line-2);
+  border-radius: 12px;
+  padding: 10px;
+  background: var(--panel);
+  display: grid;
+  gap: 8px;
+}
+
+.movement-block h4 {
+  font-size: 13px;
+  color: #344054;
+}
+
+.movement-block-grid {
+  display: grid;
+  gap: 10px;
+}
+
+.movement-block-grid.two {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.movement-block-grid.four {
   grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.movement-preview {
+  border: 1px dashed #cfd8ea;
+  border-radius: 12px;
+  background: #f8faff;
+  padding: 10px 12px;
+  display: grid;
+  gap: 6px;
+}
+
+.movement-preview strong {
+  font-size: 12px;
+  letter-spacing: 0.3px;
+  text-transform: uppercase;
+  color: #475467;
+}
+
+.movement-submit {
+  justify-content: flex-end;
+}
+
+.movement-history-card {
+  gap: 12px;
+}
+
+.movement-history-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.movement-filter-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: flex-end;
+}
+
+.movement-filter-label {
+  min-width: 135px;
+  display: grid;
+  gap: 4px;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  color: #667085;
+}
+
+.movement-filter-label.search {
+  min-width: 260px;
+  flex: 1 1 320px;
+}
+
+.movement-filter-label.search > .input-inline {
+  min-width: 0;
+}
+
+.movement-filter-label.mini {
+  min-width: 90px;
+}
+
+.movement-filter-label select,
+.movement-filter-label input {
+  text-transform: none;
+  letter-spacing: normal;
+}
+
+.movement-refresh {
+  align-self: end;
+  min-height: 38px;
+}
+
+.movement-history-meta {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.movement-stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.movement-stats .badge {
+  height: 28px;
 }
 
 label {
@@ -1475,8 +1616,11 @@ details meta-details,
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 
-  .movement-grid,
   .settings-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .movement-block-grid.four {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
@@ -1516,9 +1660,23 @@ details meta-details,
   .grid.two,
   .form-grid.compact,
   .overview-top,
-  .movement-grid,
   .settings-grid {
     grid-template-columns: 1fr;
+  }
+
+  .movement-block-grid.two,
+  .movement-block-grid.four {
+    grid-template-columns: 1fr;
+  }
+
+  .movement-filter-label.search {
+    flex-basis: 100%;
+    min-width: 0;
+  }
+
+  .movement-history-head {
+    align-items: stretch;
+    flex-direction: column;
   }
 
   .workspace-head {

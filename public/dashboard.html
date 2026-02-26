@@ -187,53 +187,93 @@
         </section>
 
         <section class="view" data-view-panel="movements">
-          <article class="card">
-            <h3>Apply Movement</h3>
-            <form id="movement-form" class="form-grid movement-grid">
-              <label>Type
-                <select id="move-type" required>
-                  <option value="receive">Receive</option>
-                  <option value="issue">Issue</option>
-                  <option value="transfer">Transfer</option>
-                  <option value="adjust">Adjust (+/-)</option>
-                  <option value="set">Set Absolute</option>
-                </select>
-              </label>
-              <label>Item
-                <select id="move-item" required></select>
-              </label>
-              <label id="move-qty-wrap">Quantity
-                <input id="move-quantity" type="number" step="0.001" />
-              </label>
-              <label class="hidden" id="move-target-wrap">Target Quantity
-                <input id="move-target" type="number" min="0" step="0.001" />
-              </label>
-              <label id="move-from-wrap">From Area
-                <select id="move-from"></select>
-              </label>
-              <label id="move-to-wrap">To Area
-                <select id="move-to"></select>
-              </label>
-              <label>Reference
-                <input id="move-reference" placeholder="PO-1003 / JOB-22" />
-              </label>
-              <label>Note
-                <input id="move-note" placeholder="What changed and why" />
-              </label>
-              <div class="actions">
-                <button class="btn primary" type="submit">Apply</button>
+          <article class="card movement-card">
+            <div class="movement-card-head">
+              <div>
+                <h3>Movement Center</h3>
+                <p class="hint">Step through one flow for receive, issue, transfer, adjust, and set actions.</p>
+              </div>
+              <span class="badge" id="movement-mode-badge">Mode: Receive</span>
+            </div>
+
+            <form id="movement-form" class="form-grid movement-grid movement-form-shell">
+              <section class="movement-block">
+                <h4>1. Action</h4>
+                <div class="movement-block-grid two">
+                  <label>Type
+                    <select id="move-type" required>
+                      <option value="receive">Receive</option>
+                      <option value="issue">Issue</option>
+                      <option value="transfer">Transfer</option>
+                      <option value="adjust">Adjust (+/-)</option>
+                      <option value="set">Set Absolute</option>
+                    </select>
+                  </label>
+                  <label>Item
+                    <select id="move-item" required></select>
+                  </label>
+                </div>
+              </section>
+
+              <section class="movement-block">
+                <h4>2. Quantity & Areas</h4>
+                <div class="movement-block-grid four">
+                  <label id="move-qty-wrap">Quantity
+                    <input id="move-quantity" type="number" step="0.001" />
+                  </label>
+                  <label class="hidden" id="move-target-wrap">Target Quantity
+                    <input id="move-target" type="number" min="0" step="0.001" />
+                  </label>
+                  <label id="move-from-wrap">From Area
+                    <select id="move-from"></select>
+                  </label>
+                  <label id="move-to-wrap">To Area
+                    <select id="move-to"></select>
+                  </label>
+                </div>
+              </section>
+
+              <section class="movement-block">
+                <h4>3. Context</h4>
+                <div class="movement-block-grid two">
+                  <label>Reference
+                    <input id="move-reference" placeholder="PO-1003 / JOB-22" />
+                  </label>
+                  <label>Note
+                    <input id="move-note" placeholder="What changed and why" />
+                  </label>
+                </div>
+              </section>
+
+              <aside class="movement-preview">
+                <strong>Preview</strong>
+                <p class="hint" id="movement-preview-text">Receive quantity into destination area.</p>
+              </aside>
+
+              <div class="actions movement-submit">
+                <button class="btn primary" type="submit"><i class="fa-solid fa-check"></i> Apply Movement</button>
               </div>
             </form>
           </article>
 
-          <article class="card">
-            <div class="card-head">
-              <h3>Movement History</h3>
-              <div class="inline-controls">
-                <label class="input-inline">
+          <article class="card movement-history-card">
+            <div class="movement-history-head">
+              <div>
+                <h3>Movement History</h3>
+                <p class="hint">Track every stock change with filters by type, period, and keywords.</p>
+              </div>
+            </div>
+
+            <div class="movement-filter-grid">
+              <label class="movement-filter-label search">
+                <span>Search</span>
+                <span class="input-inline">
                   <i class="fa-solid fa-magnifying-glass"></i>
                   <input id="movements-search" placeholder="Search item, note, reference" />
-                </label>
+                </span>
+              </label>
+              <label class="movement-filter-label">
+                <span>Type</span>
                 <select id="movements-type-filter">
                   <option value="">All Types</option>
                   <option value="receive">Receive</option>
@@ -242,6 +282,9 @@
                   <option value="adjust">Adjust</option>
                   <option value="set">Set</option>
                 </select>
+              </label>
+              <label class="movement-filter-label">
+                <span>Period</span>
                 <select id="movements-range-filter">
                   <option value="today">Today</option>
                   <option value="this_month" selected>This Month</option>
@@ -249,23 +292,30 @@
                   <option value="custom">Custom</option>
                   <option value="all">All Time</option>
                 </select>
-                <label id="movements-custom-start-wrap" class="range-custom hidden">
-                  <span>From</span>
-                  <input id="movements-date-from" type="date" />
-                </label>
-                <label id="movements-custom-end-wrap" class="range-custom hidden">
-                  <span>To</span>
-                  <input id="movements-date-to" type="date" />
-                </label>
+              </label>
+              <label id="movements-custom-start-wrap" class="movement-filter-label range-custom hidden">
+                <span>From</span>
+                <input id="movements-date-from" type="date" />
+              </label>
+              <label id="movements-custom-end-wrap" class="movement-filter-label range-custom hidden">
+                <span>To</span>
+                <input id="movements-date-to" type="date" />
+              </label>
+              <label class="movement-filter-label mini">
+                <span>Rows</span>
                 <select id="movements-page-size">
                   <option value="20">20</option>
                   <option value="50" selected>50</option>
                   <option value="100">100</option>
                 </select>
-                <button class="btn ghost" id="movements-refresh" type="button">Refresh</button>
-              </div>
+              </label>
+              <button class="btn ghost movement-refresh" id="movements-refresh" type="button">Refresh</button>
             </div>
-            <p id="movements-range-label" class="hint range-label">Period: This Month</p>
+
+            <div class="movement-history-meta">
+              <p id="movements-range-label" class="hint range-label">Period: This Month</p>
+              <div id="movements-stats" class="movement-stats"></div>
+            </div>
 
             <div class="table-wrap tall">
               <table>

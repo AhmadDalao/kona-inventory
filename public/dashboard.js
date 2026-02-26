@@ -1355,6 +1355,18 @@ function wireEvents() {
 
   byId('movement-form').addEventListener('submit', onApplyMovement);
   byId('move-type').addEventListener('change', updateMovementFields);
+  ['move-item', 'move-from', 'move-to'].forEach((id) => {
+    const node = byId(id);
+    if (node) {
+      node.addEventListener('change', syncMovementComposer);
+    }
+  });
+  ['move-quantity', 'move-target', 'move-reference', 'move-note'].forEach((id) => {
+    const node = byId(id);
+    if (node) {
+      node.addEventListener('input', syncMovementComposer);
+    }
+  });
 
   byId('settings-form').addEventListener('submit', onSaveSettings);
   ['set-theme-mode', 'set-theme-palette', 'set-dashboard-style', 'set-brand-primary', 'set-icon-primary', 'set-icon-muted', 'set-icon-accent']
@@ -2529,9 +2541,51 @@ function renderLevels() {
   renderPager('levels-pager', 'levels', page.totalRows, page.totalPages);
 }
 
+function renderMovementStats(rows) {
+  const root = byId('movements-stats');
+  if (!root) {
+    return;
+  }
+
+  let inbound = 0;
+  let outbound = 0;
+  for (const row of rows) {
+    const type = String(row.movement_type || '').toLowerCase();
+    const quantity = Math.abs(Number(row.quantity || 0));
+
+    if (type === 'receive') {
+      inbound += quantity;
+      continue;
+    }
+    if (type === 'issue') {
+      outbound += quantity;
+      continue;
+    }
+    if (type === 'transfer') {
+      inbound += quantity;
+      outbound += quantity;
+      continue;
+    }
+    if (Number(row.quantity || 0) >= 0) {
+      inbound += quantity;
+    } else {
+      outbound += quantity;
+    }
+  }
+
+  const net = inbound - outbound;
+  root.innerHTML = `
+    <span class="badge">Rows: ${escapeHtml(formatNumber(rows.length))}</span>
+    <span class="badge good">Inbound: +${escapeHtml(formatNumber(inbound))}</span>
+    <span class="badge bad">Outbound: -${escapeHtml(formatNumber(outbound))}</span>
+    <span class="badge ${net >= 0 ? 'good' : 'bad'}">Net: ${escapeHtml(formatSigned(net))}</span>
+  `;
+}
+
 function renderMovements() {
   const tableState = state.tables.movements;
   const source = applySorting(state.movementsRows, tableState.sortKey, tableState.sortDir);
+  renderMovementStats(source);
   const page = paginate(source, tableState.page, tableState.pageSize);
   tableState.page = page.page;
 
@@ -3026,6 +3080,82 @@ function paginate(rows, page, size) {
   };
 }
 
+function movementTypeMeta(type) {
+  const map = {
+    receive: { label: 'Receive', verb: 'Receive stock into an area' },
+    issue: { label: 'Issue', verb: 'Issue stock out of an area' },
+    transfer: { label: 'Transfer', verb: 'Transfer stock between areas' },
+    adjust: { label: 'Adjust', verb: 'Adjust stock by positive or negative delta' },
+    set: { label: 'Set Absolute', verb: 'Set an exact area quantity' },
+  };
+  return map[type] || { label: 'Movement', verb: 'Apply movement' };
+}
+
+function movementItemText(itemId) {
+  const id = Number(itemId || 0);
+  const item = state.items.find((row) => Number(row.id) === id);
+  if (!item) {
+    return 'selected item';
+  }
+  return `${item.sku} - ${item.name}`;
+}
+
+function movementAreaText(areaId, fallback = 'selected area') {
+  const id = Number(areaId || 0);
+  const area = state.areas.find((row) => Number(row.id) === id);
+  return area ? area.name : fallback;
+}
+
+function syncMovementComposer() {
+  const type = String(byId('move-type')?.value || 'receive');
+  const itemId = Number(byId('move-item')?.value || 0);
+  const qty = Number(byId('move-quantity')?.value || 0);
+  const target = Number(byId('move-target')?.value || 0);
+  const fromAreaId = Number(byId('move-from')?.value || 0);
+  const toAreaId = Number(byId('move-to')?.value || 0);
+
+  const modeBadge = byId('movement-mode-badge');
+  const preview = byId('movement-preview-text');
+  if (!modeBadge || !preview) {
+    return;
+  }
+
+  const meta = movementTypeMeta(type);
+  modeBadge.textContent = `Mode: ${meta.label}`;
+  const itemText = movementItemText(itemId);
+  const qtyText = Number.isFinite(qty) && qty > 0 ? formatNumber(qty) : 'quantity';
+  const targetText = Number.isFinite(target) && target >= 0 ? formatNumber(target) : 'target';
+  const fromText = movementAreaText(fromAreaId, 'source area');
+  const toText = movementAreaText(toAreaId, 'destination area');
+
+  if (type === 'receive') {
+    preview.textContent = `Receive ${qtyText} of ${itemText} into ${toText}.`;
+    return;
+  }
+
+  if (type === 'issue') {
+    preview.textContent = `Issue ${qtyText} of ${itemText} from ${fromText}.`;
+    return;
+  }
+
+  if (type === 'transfer') {
+    preview.textContent = `Transfer ${qtyText} of ${itemText} from ${fromText} to ${toText}.`;
+    return;
+  }
+
+  if (type === 'adjust') {
+    preview.textContent = `Adjust ${itemText} in ${toText} by ${formatSigned(qty || 0)}.`;
+    return;
+  }
+
+  if (type === 'set') {
+    preview.textContent = `Set ${itemText} in ${toText} to exactly ${targetText}.`;
+    return;
+  }
+
+  preview.textContent = meta.verb;
+}
+
 function updateMovementFields() {
   const type = byId('move-type').value;
 
@@ -3054,6 +3184,8 @@ function updateMovementFields() {
     byId('move-qty-wrap').classList.add('hidden');
     byId('move-target-wrap').classList.remove('hidden');
   }
+
+  syncMovementComposer();
 }
 
 async function onApplyMovement(event) {
