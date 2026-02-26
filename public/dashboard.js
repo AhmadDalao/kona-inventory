@@ -20,7 +20,7 @@ const state = {
   tables: {
     levels: { page: 1, pageSize: 25, sortKey: 'item_name', sortDir: 'asc' },
     movements: { page: 1, pageSize: 50, sortKey: 'created_at', sortDir: 'desc' },
-    users: { page: 1, pageSize: 25, sortKey: 'name', sortDir: 'asc' },
+    users: { page: 1, pageSize: 10, sortKey: 'name', sortDir: 'asc' },
     audit: { page: 1, pageSize: 25, sortKey: 'created_at', sortDir: 'desc' },
     adminActivity: { page: 1, pageSize: 25, sortKey: 'created_at', sortDir: 'desc' },
   },
@@ -71,7 +71,7 @@ const viewMeta = {
   },
   admin: {
     title: 'Admins',
-    subtitle: 'Owner control panel for admin users.',
+    subtitle: 'Manage admin accounts.',
     searchPlaceholder: 'Search admin users',
   },
   trash: {
@@ -946,13 +946,28 @@ function wireEvents() {
     renderMovements();
   });
 
-  byId('users-refresh').addEventListener('click', loadUsers);
-  byId('users-search').addEventListener('input', debounce(() => {
+  const runUsersSearch = () => {
     state.tables.users.page = 1;
+    state.tables.users.pageSize = Number(byId('users-limit').value || 10);
     loadUsers();
-  }, 250));
-  byId('users-role-filter').addEventListener('change', loadUsers);
-  byId('users-limit').addEventListener('change', loadUsers);
+  };
+
+  byId('users-refresh').addEventListener('click', loadUsers);
+  byId('users-search').addEventListener('input', debounce(runUsersSearch, 250));
+  byId('users-search').addEventListener('keydown', (event) => {
+    if (event.key === 'Enter') {
+      event.preventDefault();
+      runUsersSearch();
+    }
+  });
+  byId('users-search-btn').addEventListener('click', runUsersSearch);
+  byId('users-clear-btn').addEventListener('click', () => {
+    byId('users-search').value = '';
+    byId('users-role-filter').value = '';
+    runUsersSearch();
+  });
+  byId('users-role-filter').addEventListener('change', runUsersSearch);
+  byId('users-limit').addEventListener('change', runUsersSearch);
 
   byId('admin-activity-refresh').addEventListener('click', loadAdminActivity);
   byId('admin-activity-user-filter').addEventListener('change', () => {
@@ -1296,6 +1311,7 @@ async function loadUsers() {
   const suffix = params.toString() ? `?${params.toString()}` : '';
   const payload = await api(`/api/admin/users${suffix}`);
   state.users = payload.data || [];
+  state.tables.users.pageSize = Math.max(1, Number(limit || state.tables.users.pageSize || 10));
   populateAdminActivityUserFilter();
   state.tables.users.page = 1;
   renderUsers();
@@ -2031,7 +2047,7 @@ function renderUsers() {
   tbody.innerHTML = '';
 
   if (!canManageAdmin()) {
-    tbody.innerHTML = '<tr><td colspan="6">Owner access required.</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="8">Owner access required.</td></tr>';
     byId('users-pager').innerHTML = '';
     return;
   }
@@ -2042,23 +2058,29 @@ function renderUsers() {
   tableState.page = page.page;
 
   if (!page.rows.length) {
-    tbody.innerHTML = '<tr><td colspan="6">No users found.</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="8">No users found.</td></tr>';
     renderPager('users-pager', 'users', page.totalRows, page.totalPages);
     return;
   }
 
   for (const user of page.rows) {
     const active = Number(user.is_active) === 1;
+    const email = String(user.email || '');
+    const username = email.includes('@') ? email.split('@')[0] : String(user.name || '').toLowerCase().replace(/\s+/g, '.');
+    const role = String(user.role || '').toLowerCase();
+    const roleLabel = role || 'viewer';
     const tr = document.createElement('tr');
     tr.innerHTML = `
+      <td>${escapeHtml(String(user.id || '-'))}</td>
       <td>${escapeHtml(user.name)}</td>
-      <td>${escapeHtml(user.email)}</td>
-      <td>${escapeHtml(String(user.role || '').toUpperCase())}</td>
+      <td>${escapeHtml(username)}</td>
+      <td>${escapeHtml(email)}</td>
+      <td><span class="role-pill">${escapeHtml(roleLabel)}</span></td>
       <td><span class="status-pill ${active ? 'in' : 'out'}">${active ? 'Active' : 'Inactive'}</span></td>
       <td>${escapeHtml(formatDate(user.created_at))}</td>
       <td>
         <div class="actions">
-          <button class="btn ghost table-btn action-edit" data-user-edit="${user.id}" ${canWrite() ? '' : 'disabled'}>Edit</button>
+          <button class="btn ghost table-btn action-edit" data-user-edit="${user.id}" ${canWrite() ? '' : 'disabled'}>Manage</button>
           <button class="btn ghost table-btn action-toggle" data-user-toggle="${user.id}" ${canWrite() ? '' : 'disabled'}>${active ? 'Disable' : 'Enable'}</button>
         </div>
       </td>

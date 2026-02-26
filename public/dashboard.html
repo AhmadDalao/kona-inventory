@@ -377,99 +377,110 @@
         </section>
 
         <section class="view" data-view-panel="admin">
-          <div class="grid two">
-            <article class="card" id="admin-users-card">
-              <div class="card-head">
-                <h3>Admin Users</h3>
-                <div class="inline-controls">
-                  <label class="input-inline">
-                    <i class="fa-solid fa-magnifying-glass"></i>
-                    <input id="users-search" placeholder="Search name or email" />
-                  </label>
-                  <select id="users-role-filter">
-                    <option value="">All Roles</option>
-                    <option value="owner">Owner</option>
-                    <option value="manager">Manager</option>
-                    <option value="viewer">Viewer</option>
-                  </select>
-                  <select id="users-limit">
-                    <option value="50">50</option>
-                    <option value="100" selected>100</option>
-                    <option value="200">200</option>
-                  </select>
-                  <button class="btn primary" type="button" id="users-add-btn"><i class="fa-solid fa-plus"></i> Add User</button>
-                  <button class="btn ghost" type="button" id="users-refresh">Refresh</button>
-                </div>
-              </div>
+          <article class="card admin-hero">
+            <div>
+              <h3>Admins</h3>
+              <p class="hint">Manage admin accounts.</p>
+            </div>
+            <button class="btn primary" type="button" id="users-add-btn"><i class="fa-solid fa-user-plus"></i> Add New</button>
+          </article>
 
-              <div class="table-wrap tall">
-                <table>
-                  <thead>
-                    <tr><th>Name</th><th>Email</th><th>Role</th><th>Status</th><th>Created</th><th>Actions</th></tr>
-                  </thead>
-                  <tbody id="users-table"></tbody>
-                </table>
+          <article class="card" id="admin-users-card">
+            <div class="admin-toolbar">
+              <label class="admin-show-control">
+                <span>Show</span>
+                <select id="users-limit">
+                  <option value="10" selected>10</option>
+                  <option value="25">25</option>
+                  <option value="50">50</option>
+                  <option value="100">100</option>
+                </select>
+                <span>entries</span>
+              </label>
+              <div class="admin-filter-controls">
+                <select id="users-role-filter">
+                  <option value="">All Roles</option>
+                  <option value="owner">Owner</option>
+                  <option value="manager">Manager</option>
+                  <option value="viewer">Viewer</option>
+                </select>
+                <label class="input-inline">
+                  <i class="fa-solid fa-magnifying-glass"></i>
+                  <input id="users-search" placeholder="Search admins..." />
+                </label>
+                <button class="btn ghost" type="button" id="users-search-btn"><i class="fa-solid fa-magnifying-glass"></i> Search</button>
+                <button class="btn ghost" type="button" id="users-clear-btn"><i class="fa-solid fa-eraser"></i> Clear</button>
+                <button class="btn ghost" type="button" id="users-refresh"><i class="fa-solid fa-rotate-right"></i> Refresh</button>
               </div>
-              <div class="pager" id="users-pager"></div>
-            </article>
+            </div>
 
-            <article class="card">
-              <div class="card-head">
-                <h3>Owner Activity Log</h3>
-                <div class="inline-controls">
-                  <select id="admin-activity-user-filter">
-                    <option value="">All Admins</option>
-                  </select>
-                  <select id="admin-activity-action-filter">
-                    <option value="">All Actions</option>
-                    <option value="create">Created</option>
-                    <option value="update">Edited</option>
-                    <option value="delete">Deleted</option>
-                    <option value="restore">Restored</option>
-                  </select>
-                  <select id="admin-activity-range-filter">
-                    <option value="today">Today</option>
-                    <option value="this_month" selected>This Month</option>
-                    <option value="last_month">Last Month</option>
-                    <option value="custom">Custom</option>
-                    <option value="all">All Time</option>
-                  </select>
-                  <label id="admin-activity-custom-start-wrap" class="range-custom hidden">
-                    <span>From</span>
-                    <input id="admin-activity-date-from" type="date" />
-                  </label>
-                  <label id="admin-activity-custom-end-wrap" class="range-custom hidden">
-                    <span>To</span>
-                    <input id="admin-activity-date-to" type="date" />
-                  </label>
-                  <select id="admin-activity-limit">
-                    <option value="50">50</option>
-                    <option value="100" selected>100</option>
-                    <option value="200">200</option>
-                  </select>
-                  <button class="btn ghost" type="button" id="admin-activity-refresh">Refresh</button>
-                </div>
-              </div>
-              <p id="admin-activity-range-label" class="hint range-label">Period: This Month</p>
-              <div class="table-wrap compact">
-                <table>
-                  <thead>
-                    <tr><th>Time</th><th>Admin</th><th>Action</th><th>Entity</th><th>Status</th><th>Summary</th></tr>
-                  </thead>
-                  <tbody id="admin-activity-table"></tbody>
-                </table>
-              </div>
-              <div class="pager" id="admin-activity-pager"></div>
+            <div class="table-wrap tall admin-table-wrap">
+              <table class="admin-table">
+                <thead>
+                  <tr><th>ID</th><th>Name</th><th>Username</th><th>Email</th><th>Role</th><th>Status</th><th>Created</th><th>Actions</th></tr>
+                </thead>
+                <tbody id="users-table"></tbody>
+              </table>
+            </div>
+            <div class="pager" id="users-pager"></div>
+          </article>
 
-              <h3 class="card-subtitle">Admin Notes</h3>
-              <ul class="plain-list">
-                <li>Owner has full control including settings and audit trail.</li>
-                <li>Manager can run inventory operations, but cannot see owner audit log.</li>
-                <li>Viewer is read-only and cannot edit inventory records.</li>
-                <li>All write actions are logged with actor, action, timestamp, and IP.</li>
-              </ul>
-            </article>
-          </div>
+          <article class="card">
+            <div class="card-head">
+              <h3>Owner Activity Log</h3>
+              <div class="inline-controls">
+                <select id="admin-activity-user-filter">
+                  <option value="">All Admins</option>
+                </select>
+                <select id="admin-activity-action-filter">
+                  <option value="">All Actions</option>
+                  <option value="create">Created</option>
+                  <option value="update">Edited</option>
+                  <option value="delete">Deleted</option>
+                  <option value="restore">Restored</option>
+                </select>
+                <select id="admin-activity-range-filter">
+                  <option value="today">Today</option>
+                  <option value="this_month" selected>This Month</option>
+                  <option value="last_month">Last Month</option>
+                  <option value="custom">Custom</option>
+                  <option value="all">All Time</option>
+                </select>
+                <label id="admin-activity-custom-start-wrap" class="range-custom hidden">
+                  <span>From</span>
+                  <input id="admin-activity-date-from" type="date" />
+                </label>
+                <label id="admin-activity-custom-end-wrap" class="range-custom hidden">
+                  <span>To</span>
+                  <input id="admin-activity-date-to" type="date" />
+                </label>
+                <select id="admin-activity-limit">
+                  <option value="50">50</option>
+                  <option value="100" selected>100</option>
+                  <option value="200">200</option>
+                </select>
+                <button class="btn ghost" type="button" id="admin-activity-refresh">Refresh</button>
+              </div>
+            </div>
+            <p id="admin-activity-range-label" class="hint range-label">Period: This Month</p>
+            <div class="table-wrap compact">
+              <table>
+                <thead>
+                  <tr><th>Time</th><th>Admin</th><th>Action</th><th>Entity</th><th>Status</th><th>Summary</th></tr>
+                </thead>
+                <tbody id="admin-activity-table"></tbody>
+              </table>
+            </div>
+            <div class="pager" id="admin-activity-pager"></div>
+
+            <h3 class="card-subtitle">Admin Notes</h3>
+            <ul class="plain-list">
+              <li>Owner has full control including settings and audit trail.</li>
+              <li>Manager can run inventory operations, but cannot see owner audit log.</li>
+              <li>Viewer is read-only and cannot edit inventory records.</li>
+              <li>All write actions are logged with actor, action, timestamp, and IP.</li>
+            </ul>
+          </article>
         </section>
 
         <section class="view" data-view-panel="trash">
