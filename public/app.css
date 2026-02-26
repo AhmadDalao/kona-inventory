@@ -1181,11 +1181,30 @@ details meta-details,
   font-weight: 700;
 }
 
+.modal-warning {
+  margin: 0;
+  border: 1px solid #fecdca;
+  background: #fef3f2;
+  color: #b42318;
+  border-radius: 10px;
+  padding: 8px 10px;
+  font-size: 12px;
+  font-weight: 700;
+}
+
 .app-modal-error {
   margin: 0;
   color: var(--danger);
   font-size: 12px;
   font-weight: 700;
+}
+
+.editor-modal-card {
+  width: min(760px, 100%);
+}
+
+.editor-modal-card .inline-check {
+  margin-top: 4px;
 }
 
 .app-modal-actions {

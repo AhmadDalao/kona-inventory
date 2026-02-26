@@ -16,9 +16,6 @@ const state = {
   },
   auditRows: [],
   adminActivityRows: [],
-  editAreaId: null,
-  editItemId: null,
-  editUserId: null,
   view: 'overview',
   tables: {
     levels: { page: 1, pageSize: 25, sortKey: 'item_name', sortDir: 'asc' },
@@ -32,6 +29,12 @@ const state = {
 const modalState = {
   resolver: null,
   mode: 'confirm',
+  validator: null,
+};
+
+const editorModalState = {
+  resolver: null,
+  fields: [],
   validator: null,
 };
 
@@ -57,8 +60,8 @@ const viewMeta = {
     searchPlaceholder: 'Use filters inside this page',
   },
   items: {
-    title: 'Items',
-    subtitle: 'Manage product SKUs, categories, and reorder levels.',
+    title: 'Item Catalog',
+    subtitle: 'Manage product SKUs, categories, units, and reorder levels.',
     searchPlaceholder: 'Use filters inside this page',
   },
   analytics: {
@@ -202,10 +205,11 @@ function initModal() {
   });
 }
 
-function openConfirmModal({ title, message, confirmLabel = 'Confirm', danger = true }) {
+function openConfirmModal({ title, message, warning = '', confirmLabel = 'Confirm', danger = true }) {
   const root = byId('app-modal');
   const titleEl = byId('app-modal-title');
   const messageEl = byId('app-modal-message');
+  const warningEl = byId('app-modal-warning');
   const inputWrap = byId('app-modal-input-wrap');
   const errorEl = byId('app-modal-error');
   const confirm = byId('app-modal-confirm');
@@ -219,6 +223,10 @@ function openConfirmModal({ title, message, confirmLabel = 'Confirm', danger = t
 
   titleEl.textContent = title || 'Confirm Action';
   messageEl.textContent = message || '';
+  if (warningEl) {
+    warningEl.textContent = warning || '';
+    warningEl.classList.toggle('hidden', !warning);
+  }
   inputWrap.classList.add('hidden');
   errorEl.textContent = '';
   errorEl.classList.add('hidden');
@@ -246,6 +254,7 @@ function openInputModal({
   const root = byId('app-modal');
   const titleEl = byId('app-modal-title');
   const messageEl = byId('app-modal-message');
+  const warningEl = byId('app-modal-warning');
   const inputWrap = byId('app-modal-input-wrap');
   const inputLabel = byId('app-modal-input-label');
   const input = byId('app-modal-input');
@@ -261,6 +270,10 @@ function openInputModal({
 
   titleEl.textContent = title || 'Input Required';
   messageEl.textContent = message || '';
+  if (warningEl) {
+    warningEl.textContent = '';
+    warningEl.classList.add('hidden');
+  }
   inputLabel.textContent = label;
   input.type = inputType;
   input.value = String(initialValue ?? '');
@@ -310,6 +323,7 @@ function submitModal() {
 
 function closeModal(result) {
   const root = byId('app-modal');
+  const warningEl = byId('app-modal-warning');
   const errorEl = byId('app-modal-error');
   const inputWrap = byId('app-modal-input-wrap');
   const input = byId('app-modal-input');
@@ -321,6 +335,10 @@ function closeModal(result) {
   if (errorEl) {
     errorEl.textContent = '';
     errorEl.classList.add('hidden');
+  }
+  if (warningEl) {
+    warningEl.textContent = '';
+    warningEl.classList.add('hidden');
   }
   if (inputWrap) {
     inputWrap.classList.add('hidden');
@@ -338,6 +356,206 @@ function closeModal(result) {
   if (typeof resolver === 'function') {
     resolver(result);
   }
+}
+
+function initEditorModal() {
+  const root = byId('editor-modal');
+  const close = byId('editor-modal-close');
+  const cancel = byId('editor-modal-cancel');
+  const confirm = byId('editor-modal-confirm');
+  const form = byId('editor-modal-form');
+
+  if (!root || !close || !cancel || !confirm || !form) {
+    return;
+  }
+
+  close.addEventListener('click', () => closeEditorModal(null));
+  cancel.addEventListener('click', () => closeEditorModal(null));
+  confirm.addEventListener('click', () => submitEditorModal());
+  form.addEventListener('submit', (event) => {
+    event.preventDefault();
+    submitEditorModal();
+  });
+  root.addEventListener('click', (event) => {
+    if (event.target === root) {
+      closeEditorModal(null);
+    }
+  });
+
+  document.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape' && !root.classList.contains('hidden')) {
+      closeEditorModal(null);
+    }
+  });
+}
+
+function renderEditorField(field) {
+  const name = String(field.name || '').trim();
+  if (!name) {
+    return '';
+  }
+
+  const id = `editor-field-${name}`;
+  const label = escapeHtml(field.label || name);
+  const required = field.required ? ' required' : '';
+  const placeholder = field.placeholder ? ` placeholder="${escapeHtml(field.placeholder)}"` : '';
+  const value = field.value ?? '';
+
+  if (field.type === 'checkbox') {
+    return `
+      <label class="inline-check field-span-2">
+        <input id="${id}" name="${escapeHtml(name)}" type="checkbox" ${value ? 'checked' : ''} />
+        ${label}
+      </label>
+    `;
+  }
+
+  if (field.type === 'select') {
+    const options = (field.options || []).map((option) => {
+      const optionValue = String(option.value ?? '');
+      const selected = String(value) === optionValue ? ' selected' : '';
+      return `<option value="${escapeHtml(optionValue)}"${selected}>${escapeHtml(option.label ?? optionValue)}</option>`;
+    }).join('');
+    return `
+      <label>
+        ${label}
+        <select id="${id}" name="${escapeHtml(name)}"${required}>${options}</select>
+      </label>
+    `;
+  }
+
+  const type = field.type || 'text';
+  const min = field.min !== undefined ? ` min="${escapeHtml(String(field.min))}"` : '';
+  const max = field.max !== undefined ? ` max="${escapeHtml(String(field.max))}"` : '';
+  const step = field.step !== undefined ? ` step="${escapeHtml(String(field.step))}"` : '';
+  return `
+    <label>
+      ${label}
+      <input id="${id}" name="${escapeHtml(name)}" type="${escapeHtml(type)}" value="${escapeHtml(String(value))}"${placeholder}${required}${min}${max}${step} />
+    </label>
+  `;
+}
+
+function openEditorModal({
+  title,
+  message = '',
+  fields = [],
+  submitLabel = 'Save',
+  validator = null,
+}) {
+  const root = byId('editor-modal');
+  const titleEl = byId('editor-modal-title');
+  const messageEl = byId('editor-modal-message');
+  const formEl = byId('editor-modal-form');
+  const errorEl = byId('editor-modal-error');
+  const confirm = byId('editor-modal-confirm');
+
+  if (!root || !titleEl || !messageEl || !formEl || !errorEl || !confirm) {
+    return Promise.resolve(null);
+  }
+
+  editorModalState.fields = Array.isArray(fields) ? fields : [];
+  editorModalState.validator = typeof validator === 'function' ? validator : null;
+
+  titleEl.textContent = title || 'Edit Record';
+  messageEl.textContent = message || '';
+  formEl.innerHTML = editorModalState.fields.map(renderEditorField).join('');
+  errorEl.textContent = '';
+  errorEl.classList.add('hidden');
+  confirm.textContent = submitLabel || 'Save';
+  confirm.disabled = false;
+
+  root.classList.remove('hidden');
+  document.body.classList.add('modal-open');
+
+  setTimeout(() => {
+    const firstInput = formEl.querySelector('input, select, textarea');
+    if (firstInput) {
+      firstInput.focus();
+      if (firstInput.tagName === 'INPUT' && firstInput.type !== 'checkbox') {
+        firstInput.select();
+      }
+    }
+  }, 0);
+
+  return new Promise((resolve) => {
+    editorModalState.resolver = resolve;
+  });
+}
+
+function closeEditorModal(result) {
+  const root = byId('editor-modal');
+  const formEl = byId('editor-modal-form');
+  const errorEl = byId('editor-modal-error');
+  const confirm = byId('editor-modal-confirm');
+
+  if (root) {
+    root.classList.add('hidden');
+  }
+  if (formEl) {
+    formEl.innerHTML = '';
+  }
+  if (errorEl) {
+    errorEl.textContent = '';
+    errorEl.classList.add('hidden');
+  }
+  if (confirm) {
+    confirm.disabled = false;
+  }
+  document.body.classList.remove('modal-open');
+
+  const resolver = editorModalState.resolver;
+  editorModalState.resolver = null;
+  editorModalState.fields = [];
+  editorModalState.validator = null;
+
+  if (typeof resolver === 'function') {
+    resolver(result);
+  }
+}
+
+function readEditorModalValues() {
+  const formEl = byId('editor-modal-form');
+  const values = {};
+  for (const field of editorModalState.fields) {
+    const name = String(field.name || '').trim();
+    if (!name || !formEl) {
+      continue;
+    }
+    const node = formEl.querySelector(`[name="${name.replace(/"/g, '\\"')}"]`);
+    if (!node) {
+      continue;
+    }
+    if (field.type === 'checkbox') {
+      values[name] = !!node.checked;
+    } else {
+      values[name] = String(node.value ?? '');
+    }
+  }
+  return values;
+}
+
+function submitEditorModal() {
+  const errorEl = byId('editor-modal-error');
+  const confirm = byId('editor-modal-confirm');
+  const values = readEditorModalValues();
+
+  const validation = typeof editorModalState.validator === 'function'
+    ? editorModalState.validator(values)
+    : null;
+
+  if (validation) {
+    if (errorEl) {
+      errorEl.textContent = validation;
+      errorEl.classList.remove('hidden');
+    }
+    return;
+  }
+
+  if (confirm) {
+    confirm.disabled = true;
+  }
+  closeEditorModal(values);
 }
 
 function showAuth(isLoggedIn) {
@@ -538,10 +756,14 @@ function applyPermissionsUI() {
   const adminEnabled = canManageAdmin() && writeEnabled;
 
   toggleFormDisabled(byId('movement-form'), !writeEnabled);
-  toggleFormDisabled(byId('area-form'), !writeEnabled);
-  toggleFormDisabled(byId('item-form'), !writeEnabled);
   toggleFormDisabled(byId('settings-form'), !settingsEnabled);
-  toggleFormDisabled(byId('user-form'), !adminEnabled);
+
+  const areasAdd = byId('areas-add-btn');
+  const itemsAdd = byId('items-add-btn');
+  const usersAdd = byId('users-add-btn');
+  if (areasAdd) areasAdd.disabled = !writeEnabled;
+  if (itemsAdd) itemsAdd.disabled = !writeEnabled;
+  if (usersAdd) usersAdd.disabled = !adminEnabled;
 
   byId('read-only-badge').classList.toggle('hidden', !state.settings.read_only_mode);
 
@@ -637,11 +859,13 @@ function wireEvents() {
     button.addEventListener('click', () => setView(button.dataset.view));
   });
 
-  byId('area-form').addEventListener('submit', onSaveArea);
-  byId('area-reset').addEventListener('click', resetAreaForm);
+  byId('areas-add-btn').addEventListener('click', () => {
+    openAreaEditor().catch((error) => toast(error.message, true));
+  });
 
-  byId('item-form').addEventListener('submit', onSaveItem);
-  byId('item-reset').addEventListener('click', resetItemForm);
+  byId('items-add-btn').addEventListener('click', () => {
+    openItemEditor().catch((error) => toast(error.message, true));
+  });
 
   byId('movement-form').addEventListener('submit', onApplyMovement);
   byId('move-type').addEventListener('change', updateMovementFields);
@@ -666,8 +890,9 @@ function wireEvents() {
       });
     });
 
-  byId('user-form').addEventListener('submit', onSaveUser);
-  byId('user-reset').addEventListener('click', resetUserForm);
+  byId('users-add-btn').addEventListener('click', () => {
+    openUserEditor().catch((error) => toast(error.message, true));
+  });
 
   byId('levels-refresh').addEventListener('click', loadLevels);
   byId('levels-search').addEventListener('input', debounce(() => {
@@ -797,6 +1022,7 @@ function wireEvents() {
 
 async function boot() {
   initModal();
+  initEditorModal();
   wireEvents();
   updateClock();
   setInterval(updateClock, 1000);
@@ -1519,18 +1745,14 @@ function renderAreas() {
 
   tbody.querySelectorAll('[data-area-edit]').forEach((button) => {
     button.addEventListener('click', () => {
+      if (!canWrite()) {
+        return;
+      }
       const area = state.areas.find((row) => Number(row.id) === Number(button.dataset.areaEdit));
       if (!area) {
         return;
       }
-
-      state.editAreaId = Number(area.id);
-      byId('area-id').value = area.id;
-      byId('area-code').value = area.code;
-      byId('area-name').value = area.name;
-      byId('area-description').value = area.description || '';
-      byId('area-active').checked = Number(area.is_active) === 1;
-      setView('areas');
+      openAreaEditor(area).catch((error) => toast(error.message, true));
     });
   });
 
@@ -1544,6 +1766,7 @@ function renderAreas() {
       const confirmed = await openConfirmModal({
         title: 'Move Storage Area To Trash?',
         message: 'This hides the storage area from active operations. You can restore it later from Trash.',
+        warning: 'Warning: stock in this area is hidden from active workflows until this area is restored.',
         confirmLabel: 'Move To Trash',
         danger: true,
       });
@@ -1553,9 +1776,6 @@ function renderAreas() {
 
       try {
         await api(`/api/storage-areas/${areaId}`, { method: 'DELETE' });
-        if (state.editAreaId === areaId) {
-          resetAreaForm();
-        }
         await reloadMasterData();
         if (canViewTrash()) {
           await loadTrash();
@@ -1601,21 +1821,14 @@ function renderItems() {
 
   tbody.querySelectorAll('[data-item-edit]').forEach((button) => {
     button.addEventListener('click', () => {
+      if (!canWrite()) {
+        return;
+      }
       const item = state.items.find((row) => Number(row.id) === Number(button.dataset.itemEdit));
       if (!item) {
         return;
       }
-
-      state.editItemId = Number(item.id);
-      byId('item-id').value = item.id;
-      byId('item-sku').value = item.sku;
-      byId('item-name').value = item.name;
-      byId('item-category').value = item.category || '';
-      byId('item-unit').value = item.unit || 'unit';
-      byId('item-reorder').value = item.reorder_level || 0;
-      byId('item-notes').value = item.notes || '';
-      byId('item-active').checked = Number(item.is_active) === 1;
-      setView('items');
+      openItemEditor(item).catch((error) => toast(error.message, true));
     });
   });
 
@@ -1629,6 +1842,7 @@ function renderItems() {
       const confirmed = await openConfirmModal({
         title: 'Move Item To Trash?',
         message: 'This removes the item from active inventory screens. You can restore it from Trash.',
+        warning: 'Warning: this item will no longer be available in movement forms until restored.',
         confirmLabel: 'Move To Trash',
         danger: true,
       });
@@ -1638,9 +1852,6 @@ function renderItems() {
 
       try {
         await api(`/api/items/${itemId}`, { method: 'DELETE' });
-        if (state.editItemId === itemId) {
-          resetItemForm();
-        }
         await reloadMasterData();
         if (canViewTrash()) {
           await loadTrash();
@@ -1849,19 +2060,14 @@ function renderUsers() {
 
   tbody.querySelectorAll('[data-user-edit]').forEach((button) => {
     button.addEventListener('click', () => {
+      if (!canManageAdmin() || !canWrite()) {
+        return;
+      }
       const user = state.users.find((row) => Number(row.id) === Number(button.dataset.userEdit));
       if (!user) {
         return;
       }
-
-      state.editUserId = Number(user.id);
-      byId('user-id').value = user.id;
-      byId('user-name').value = user.name;
-      byId('user-email').value = user.email;
-      byId('user-password').value = '';
-      byId('user-role').value = user.role;
-      byId('user-active').checked = Number(user.is_active) === 1;
-      setView('admin');
+      openUserEditor(user).catch((error) => toast(error.message, true));
     });
   });
 
@@ -2335,31 +2541,55 @@ async function onApplyMovement(event) {
   }
 }
 
-async function onSaveArea(event) {
-  event.preventDefault();
-
+async function openAreaEditor(area = null) {
   if (!canWrite()) {
     toast('You do not have write access right now.', true);
     return;
   }
 
+  const values = await openEditorModal({
+    title: area ? 'Edit Storage Area' : 'Add Storage Area',
+    message: area
+      ? 'Update zone details, then save changes.'
+      : 'Create a new zone for inventory operations.',
+    submitLabel: area ? 'Save Changes' : 'Create Area',
+    fields: [
+      { name: 'code', label: 'Code', value: area?.code || '', required: true, placeholder: 'MAIN' },
+      { name: 'name', label: 'Name', value: area?.name || '', required: true, placeholder: 'Main Warehouse' },
+      { name: 'description', label: 'Description', value: area?.description || '', placeholder: 'Optional notes' },
+      { name: 'is_active', label: 'Active', type: 'checkbox', value: area ? Number(area.is_active) === 1 : true },
+    ],
+    validator: (formValues) => {
+      if (!String(formValues.code || '').trim()) {
+        return 'Code is required.';
+      }
+      if (!String(formValues.name || '').trim()) {
+        return 'Name is required.';
+      }
+      return null;
+    },
+  });
+
+  if (!values) {
+    return;
+  }
+
   const body = {
-    code: byId('area-code').value.trim(),
-    name: byId('area-name').value.trim(),
-    description: byId('area-description').value.trim(),
-    is_active: byId('area-active').checked,
+    code: String(values.code || '').trim(),
+    name: String(values.name || '').trim(),
+    description: String(values.description || '').trim(),
+    is_active: !!values.is_active,
   };
 
   try {
-    if (state.editAreaId) {
-      await api(`/api/storage-areas/${state.editAreaId}`, { method: 'PATCH', body });
+    if (area?.id) {
+      await api(`/api/storage-areas/${area.id}`, { method: 'PATCH', body });
       toast('Storage area updated.');
     } else {
       await api('/api/storage-areas', { method: 'POST', body });
       toast('Storage area created.');
     }
 
-    resetAreaForm();
     await reloadMasterData();
     if (canViewAudit()) {
       await loadAudit();
@@ -2369,41 +2599,72 @@ async function onSaveArea(event) {
   }
 }
 
-function resetAreaForm() {
-  state.editAreaId = null;
-  byId('area-form').reset();
-  byId('area-id').value = '';
-  byId('area-active').checked = true;
-}
-
-async function onSaveItem(event) {
-  event.preventDefault();
-
+async function openItemEditor(item = null) {
   if (!canWrite()) {
     toast('You do not have write access right now.', true);
     return;
   }
 
+  const values = await openEditorModal({
+    title: item ? 'Edit Item' : 'Add Item',
+    message: item
+      ? 'Update SKU details and reorder rules.'
+      : 'Add a new SKU to the inventory catalog.',
+    submitLabel: item ? 'Save Changes' : 'Create Item',
+    fields: [
+      { name: 'sku', label: 'SKU', value: item?.sku || '', required: true, placeholder: 'SKU-001' },
+      { name: 'name', label: 'Name', value: item?.name || '', required: true, placeholder: 'Product name' },
+      { name: 'category', label: 'Category', value: item?.category || '', placeholder: 'Packaging' },
+      { name: 'unit', label: 'Unit', value: item?.unit || 'unit', placeholder: 'unit' },
+      {
+        name: 'reorder_level',
+        label: 'Reorder Level',
+        type: 'number',
+        value: Number(item?.reorder_level || 0),
+        min: 0,
+        step: 1,
+      },
+      { name: 'notes', label: 'Notes', value: item?.notes || '', placeholder: 'Optional notes' },
+      { name: 'is_active', label: 'Active', type: 'checkbox', value: item ? Number(item.is_active) === 1 : true },
+    ],
+    validator: (formValues) => {
+      if (!String(formValues.sku || '').trim()) {
+        return 'SKU is required.';
+      }
+      if (!String(formValues.name || '').trim()) {
+        return 'Name is required.';
+      }
+      const reorder = Number(formValues.reorder_level || 0);
+      if (!Number.isFinite(reorder) || reorder < 0) {
+        return 'Reorder level must be 0 or greater.';
+      }
+      return null;
+    },
+  });
+
+  if (!values) {
+    return;
+  }
+
   const body = {
-    sku: byId('item-sku').value.trim(),
-    name: byId('item-name').value.trim(),
-    category: byId('item-category').value.trim(),
-    unit: byId('item-unit').value.trim() || 'unit',
-    reorder_level: Number(byId('item-reorder').value || 0),
-    notes: byId('item-notes').value.trim(),
-    is_active: byId('item-active').checked,
+    sku: String(values.sku || '').trim(),
+    name: String(values.name || '').trim(),
+    category: String(values.category || '').trim(),
+    unit: String(values.unit || '').trim() || 'unit',
+    reorder_level: Number(values.reorder_level || 0),
+    notes: String(values.notes || '').trim(),
+    is_active: !!values.is_active,
   };
 
   try {
-    if (state.editItemId) {
-      await api(`/api/items/${state.editItemId}`, { method: 'PATCH', body });
+    if (item?.id) {
+      await api(`/api/items/${item.id}`, { method: 'PATCH', body });
       toast('Item updated.');
     } else {
       await api('/api/items', { method: 'POST', body });
       toast('Item created.');
     }
 
-    resetItemForm();
     await reloadMasterData();
     if (canViewAudit()) {
       await loadAudit();
@@ -2411,15 +2672,6 @@ async function onSaveItem(event) {
   } catch (error) {
     toast(error.message, true);
   }
-}
-
-function resetItemForm() {
-  state.editItemId = null;
-  byId('item-form').reset();
-  byId('item-id').value = '';
-  byId('item-unit').value = 'unit';
-  byId('item-reorder').value = '0';
-  byId('item-active').checked = true;
 }
 
 async function onSaveSettings(event) {
@@ -2478,9 +2730,7 @@ async function onSaveSettings(event) {
   }
 }
 
-async function onSaveUser(event) {
-  event.preventDefault();
-
+async function openUserEditor(user = null) {
   if (!canManageAdmin()) {
     toast('Owner access required.', true);
     return;
@@ -2491,20 +2741,80 @@ async function onSaveUser(event) {
     return;
   }
 
+  const values = await openEditorModal({
+    title: user ? 'Edit Admin User' : 'Add Admin User',
+    message: user
+      ? 'Change role, status, or credentials.'
+      : 'Create a user for your internal team.',
+    submitLabel: user ? 'Save Changes' : 'Create User',
+    fields: [
+      { name: 'name', label: 'Name', value: user?.name || '', required: true, placeholder: 'Team member name' },
+      { name: 'email', label: 'Email', value: user?.email || '', required: true, placeholder: 'name@company.com' },
+      {
+        name: 'password',
+        label: user ? 'Password (optional)' : 'Password',
+        type: 'password',
+        value: '',
+        required: !user,
+        placeholder: user ? 'Leave blank to keep current password' : 'Set initial password',
+      },
+      {
+        name: 'role',
+        label: 'Role',
+        type: 'select',
+        value: user?.role || 'manager',
+        options: [
+          { value: 'owner', label: 'Owner' },
+          { value: 'manager', label: 'Manager' },
+          { value: 'viewer', label: 'Viewer' },
+        ],
+      },
+      { name: 'is_active', label: 'Active', type: 'checkbox', value: user ? Number(user.is_active) === 1 : true },
+    ],
+    validator: (formValues) => {
+      const name = String(formValues.name || '').trim();
+      const email = String(formValues.email || '').trim();
+      const password = String(formValues.password || '');
+      const role = String(formValues.role || 'manager').toLowerCase();
+
+      if (!name) {
+        return 'Name is required.';
+      }
+      if (!email) {
+        return 'Email is required.';
+      }
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+        return 'Email format is invalid.';
+      }
+      if (!['owner', 'manager', 'viewer'].includes(role)) {
+        return 'Role must be owner, manager, or viewer.';
+      }
+      if (!user && !password) {
+        return 'Password is required for new users.';
+      }
+
+      return null;
+    },
+  });
+
+  if (!values) {
+    return;
+  }
+
   const payload = {
-    name: byId('user-name').value.trim(),
-    email: byId('user-email').value.trim(),
-    password: byId('user-password').value,
-    role: byId('user-role').value,
-    is_active: byId('user-active').checked,
+    name: String(values.name || '').trim(),
+    email: String(values.email || '').trim(),
+    password: String(values.password || ''),
+    role: String(values.role || 'manager').toLowerCase(),
+    is_active: !!values.is_active,
   };
 
   try {
-    if (state.editUserId) {
+    if (user?.id) {
       if (!payload.password) {
         delete payload.password;
       }
-      await api(`/api/admin/users/${state.editUserId}`, { method: 'PATCH', body: payload });
+      await api(`/api/admin/users/${user.id}`, { method: 'PATCH', body: payload });
       toast('User updated.');
     } else {
       if (!payload.password) {
@@ -2515,7 +2825,6 @@ async function onSaveUser(event) {
       toast('User created.');
     }
 
-    resetUserForm();
     await loadUsers();
     if (canViewAudit()) {
       await loadAudit();
@@ -2523,14 +2832,6 @@ async function onSaveUser(event) {
   } catch (error) {
     toast(error.message, true);
   }
-}
-
-function resetUserForm() {
-  state.editUserId = null;
-  byId('user-form').reset();
-  byId('user-id').value = '';
-  byId('user-active').checked = true;
-  byId('user-role').value = 'manager';
 }
 
 async function reloadMasterData() {
