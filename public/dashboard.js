@@ -1209,6 +1209,7 @@ function applyPermissionsUI() {
     openBadge.textContent = uiText('badge.site_closed', 'Site Closed');
     openBadge.classList.add('bad');
   }
+  syncSiteControlPreview();
 
   const safeView = ensureAllowedView(state.view);
   if (safeView !== state.view) {
@@ -1312,6 +1313,15 @@ function wireEvents() {
         applyThemeSettings();
       });
     });
+
+  ['set-site-open', 'set-read-only'].forEach((id) => {
+    const input = byId(id);
+    if (!input) {
+      return;
+    }
+
+    input.addEventListener('change', syncSiteControlPreview);
+  });
 
   byId('users-add-btn').addEventListener('click', () => {
     openUserEditor().catch((error) => toast(error.message, true));
@@ -1605,6 +1615,7 @@ function hydrateSettingsForm() {
   byId('set-notify-inapp').checked = !!state.settings.notify_inapp;
   byId('set-notify-whatsapp').checked = !!state.settings.notify_whatsapp;
   hydrateUiTextInputs();
+  syncSiteControlPreview();
   syncThemePreview();
 }
 
@@ -1654,6 +1665,35 @@ function syncThemePreview() {
   if (dotIconPrimary) dotIconPrimary.style.background = iconPrimary;
   if (dotIconMuted) dotIconMuted.style.background = iconMuted;
   if (dotIconAccent) dotIconAccent.style.background = iconAccent;
+}
+
+function syncSiteControlPreview() {
+  const siteOpenToggle = byId('set-site-open');
+  const readOnlyToggle = byId('set-read-only');
+  const siteBadge = byId('settings-site-open-badge');
+  const readOnlyBadge = byId('settings-read-only-badge');
+
+  if (siteOpenToggle && siteBadge) {
+    siteBadge.classList.remove('good', 'bad', 'warn');
+    if (siteOpenToggle.checked) {
+      siteBadge.textContent = uiText('badge.site_open', 'Site Open');
+      siteBadge.classList.add('good');
+    } else {
+      siteBadge.textContent = uiText('badge.site_closed', 'Site Closed');
+      siteBadge.classList.add('bad');
+    }
+  }
+
+  if (readOnlyToggle && readOnlyBadge) {
+    readOnlyBadge.classList.remove('good', 'bad', 'warn');
+    if (readOnlyToggle.checked) {
+      readOnlyBadge.textContent = uiText('badge.read_only_on', 'Read-only mode is ON');
+      readOnlyBadge.classList.add('warn');
+    } else {
+      readOnlyBadge.textContent = 'Read-only mode is OFF';
+      readOnlyBadge.classList.add('good');
+    }
+  }
 }
 
 async function loadSummary() {

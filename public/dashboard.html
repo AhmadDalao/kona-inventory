@@ -618,8 +618,11 @@
 
         <section class="view" data-view-panel="settings">
           <div class="grid two">
-            <article class="card">
-              <h3>General Settings</h3>
+            <article class="card settings-card">
+              <div class="settings-head">
+                <h3><i class="fa-solid fa-gear"></i> General settings</h3>
+                <p class="hint">Core website controls and branding values.</p>
+              </div>
               <form id="settings-form" class="form-grid settings-grid">
                 <label>Company Name <input id="set-company-name" required /></label>
                 <label>Site Name <input id="set-site-name" required /></label>
@@ -649,45 +652,70 @@
                     <option value="classic">Classic</option>
                   </select>
                 </label>
+                <div class="settings-preview swatch-preview" id="settings-preview">
+                  <span class="preview-title">Palette preview</span>
+                  <div class="preview-swatches">
+                    <span class="preview-dot" id="preview-primary" title="Brand Primary"></span>
+                    <span class="preview-dot" id="preview-icon-primary" title="Icon Primary"></span>
+                    <span class="preview-dot" id="preview-icon-muted" title="Icon Muted"></span>
+                    <span class="preview-dot" id="preview-icon-accent" title="Icon Accent"></span>
+                  </div>
+                </div>
                 <label>Brand Primary <input id="set-brand-primary" placeholder="#5B3DF5" /></label>
                 <label>Icon Primary <input id="set-icon-primary" placeholder="#4332C6" /></label>
                 <label>Icon Muted <input id="set-icon-muted" placeholder="#667085" /></label>
                 <label>Icon Accent <input id="set-icon-accent" placeholder="#248DFF" /></label>
-                <label class="inline-check"><input type="checkbox" id="set-site-open" /> Site Open</label>
-                <label class="inline-check"><input type="checkbox" id="set-read-only" /> Read-only Mode</label>
-                <label class="inline-check"><input type="checkbox" id="set-allow-negative" /> Allow Negative Stock</label>
-                <label class="inline-check"><input type="checkbox" id="set-notify-email" /> Email Notifications</label>
-                <label class="inline-check"><input type="checkbox" id="set-notify-inapp" /> In-app Notifications</label>
-                <label class="inline-check"><input type="checkbox" id="set-notify-whatsapp" /> WhatsApp Notifications</label>
-                <div class="actions">
+                <section class="site-control-panel">
+                  <div class="site-control-head">
+                    <strong>Site control</strong>
+                    <span class="hint">Manage access and operation rules from one place.</span>
+                  </div>
+                  <div class="site-control-grid">
+                    <label class="control-tile">
+                      <input type="checkbox" id="set-site-open" />
+                      <span>Site Open</span>
+                      <small>Allow sign-ins and dashboard access.</small>
+                    </label>
+                    <label class="control-tile">
+                      <input type="checkbox" id="set-read-only" />
+                      <span>Read-only mode</span>
+                      <small>Block writes for non-owner users.</small>
+                    </label>
+                    <label class="control-tile">
+                      <input type="checkbox" id="set-allow-negative" />
+                      <span>Allow negative stock</span>
+                      <small>Permit quantities below zero on issue/adjust.</small>
+                    </label>
+                    <label class="control-tile">
+                      <input type="checkbox" id="set-notify-email" />
+                      <span>Email notifications</span>
+                      <small>Send operational updates by email.</small>
+                    </label>
+                    <label class="control-tile">
+                      <input type="checkbox" id="set-notify-inapp" />
+                      <span>In-app notifications</span>
+                      <small>Show alerts inside dashboard views.</small>
+                    </label>
+                    <label class="control-tile">
+                      <input type="checkbox" id="set-notify-whatsapp" />
+                      <span>WhatsApp notifications</span>
+                      <small>Enable WhatsApp alert delivery.</small>
+                    </label>
+                  </div>
+                  <div class="actions site-control-badges">
+                    <span class="badge" id="settings-site-open-badge">Site Closed</span>
+                    <span class="badge" id="settings-read-only-badge">Read-only OFF</span>
+                  </div>
+                </section>
+                <div class="actions settings-actions">
                   <button class="btn primary" type="submit">Save Settings</button>
                 </div>
               </form>
             </article>
 
-            <article class="card">
-              <h3>Live Theme Preview</h3>
-              <p class="hint">These chips reflect your current palette and status controls.</p>
-              <div class="settings-preview" id="settings-preview">
-                <div class="preview-row">
-                  <span class="preview-label">Primary</span>
-                  <span class="preview-dot" id="preview-primary"></span>
-                </div>
-                <div class="preview-row">
-                  <span class="preview-label">Icon Primary</span>
-                  <span class="preview-dot" id="preview-icon-primary"></span>
-                </div>
-                <div class="preview-row">
-                  <span class="preview-label">Icon Muted</span>
-                  <span class="preview-dot" id="preview-icon-muted"></span>
-                </div>
-                <div class="preview-row">
-                  <span class="preview-label">Icon Accent</span>
-                  <span class="preview-dot" id="preview-icon-accent"></span>
-                </div>
-              </div>
-
-              <h3>Rules</h3>
+            <article class="card settings-side-card">
+              <h3>Policy notes</h3>
+              <p class="hint">Settings here apply instantly after save.</p>
               <ul class="plain-list">
                 <li>Read-only mode blocks managers from write endpoints.</li>
                 <li>Owner is always allowed to override read-only lock.</li>
