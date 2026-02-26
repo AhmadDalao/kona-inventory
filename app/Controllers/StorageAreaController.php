@@ -20,7 +20,8 @@ class StorageAreaController
     public function index(Request $request): array
     {
         $includeInactive = filter_var((string)$request->query('include_inactive', '0'), FILTER_VALIDATE_BOOLEAN);
-        return ['body' => ['data' => $this->areas->all($includeInactive)], 'status' => 200];
+        $includeDeleted = filter_var((string)$request->query('include_deleted', '0'), FILTER_VALIDATE_BOOLEAN);
+        return ['body' => ['data' => $this->areas->all($includeInactive, $includeDeleted)], 'status' => 200];
     }
 
     public function store(Request $request): array
@@ -67,20 +68,26 @@ class StorageAreaController
         return ['body' => ['data' => $updated], 'status' => 200];
     }
 
-    public function delete(Request $request, array $params): array
+    public function delete(Request $request, array $params, array $actor): array
     {
         $id = (int)($params['id'] ?? 0);
         if ($id <= 0) {
             throw new \InvalidArgumentException('Invalid storage area id.');
         }
 
-        $existing = $this->areas->find($id);
+        $existing = $this->areas->find($id, true);
         if (!$existing) {
             throw new \RuntimeException('Storage area not found.', 404);
         }
+        if (!empty($existing['deleted_at'])) {
+            throw new \RuntimeException('Storage area is already in trash.', 422);
+        }
 
-        $this->areas->delete($id);
+        $deleted = $this->areas->softDelete($id, (int)($actor['id'] ?? 0));
+        if (!$deleted) {
+            throw new \RuntimeException('Storage area could not be moved to trash.', 422);
+        }
 
-        return ['body' => ['message' => 'Storage area deleted.'], 'status' => 200];
+        return ['body' => ['message' => 'Storage area moved to trash.'], 'status' => 200];
     }
 }

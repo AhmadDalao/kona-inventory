@@ -111,7 +111,10 @@
           <tr><td class="method">GET</td><td><code>/api/dashboard/analytics</code></td><td>Trend and analysis datasets</td></tr>
           <tr><td class="method">GET</td><td><code>/api/settings</code></td><td>Read settings</td></tr>
           <tr><td class="method">PATCH</td><td><code>/api/settings</code></td><td>Update settings</td></tr>
-          <tr><td class="method">GET</td><td><code>/api/admin/users</code></td><td>List users (owner)</td></tr>
+          <tr><td class="method">GET</td><td><code>/api/trash</code></td><td>List deleted items and storage areas (owner/manager)</td></tr>
+          <tr><td class="method">POST</td><td><code>/api/trash/{entity}/{id}/restore</code></td><td>Restore deleted item/storage area</td></tr>
+          <tr><td class="method">GET</td><td><code>/api/audit-logs</code></td><td>Owner-only write audit trail</td></tr>
+          <tr><td class="method">GET</td><td><code>/api/admin/users</code></td><td>List users (owner). Filters: <code>search</code>, <code>role</code>, <code>limit</code></td></tr>
           <tr><td class="method">POST</td><td><code>/api/admin/users</code></td><td>Create user (owner)</td></tr>
           <tr><td class="method">PATCH</td><td><code>/api/admin/users/{id}</code></td><td>Update user (owner)</td></tr>
           <tr><td class="method">GET</td><td><code>/api/storage-areas</code></td><td>List storage areas</td></tr>

@@ -20,7 +20,8 @@ class ItemController
     public function index(Request $request): array
     {
         $includeInactive = filter_var((string)$request->query('include_inactive', '0'), FILTER_VALIDATE_BOOLEAN);
-        return ['body' => ['data' => $this->items->all($includeInactive)], 'status' => 200];
+        $includeDeleted = filter_var((string)$request->query('include_deleted', '0'), FILTER_VALIDATE_BOOLEAN);
+        return ['body' => ['data' => $this->items->all($includeInactive, $includeDeleted)], 'status' => 200];
     }
 
     public function store(Request $request): array
@@ -79,24 +80,26 @@ class ItemController
         return ['body' => ['data' => $updated], 'status' => 200];
     }
 
-    public function delete(Request $request, array $params): array
+    public function delete(Request $request, array $params, array $actor): array
     {
         $id = (int)($params['id'] ?? 0);
         if ($id <= 0) {
             throw new \InvalidArgumentException('Invalid item id.');
         }
 
-        $existing = $this->items->find($id);
+        $existing = $this->items->find($id, true);
         if (!$existing) {
             throw new \RuntimeException('Item not found.', 404);
         }
-
-        try {
-            $this->items->delete($id);
-        } catch (PDOException $exception) {
-            throw new \RuntimeException('Item cannot be deleted because movement history exists. Set it inactive instead.', 422);
+        if (!empty($existing['deleted_at'])) {
+            throw new \RuntimeException('Item is already in trash.', 422);
         }
 
-        return ['body' => ['message' => 'Item deleted.'], 'status' => 200];
+        $deleted = $this->items->softDelete($id, (int)($actor['id'] ?? 0));
+        if (!$deleted) {
+            throw new \RuntimeException('Item could not be moved to trash.', 422);
+        }
+
+        return ['body' => ['message' => 'Item moved to trash.'], 'status' => 200];
     }
 }

@@ -36,6 +36,8 @@ class MetaController
                     'can_write_inventory' => in_array($role, ['owner', 'manager'], true),
                     'can_manage_admin' => in_array($role, ['owner'], true),
                     'can_manage_settings' => in_array($role, ['owner', 'manager'], true),
+                    'can_view_trash' => in_array($role, ['owner', 'manager'], true),
+                    'can_view_audit' => in_array($role, ['owner'], true),
                 ],
             ],
             'status' => 200,

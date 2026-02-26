@@ -10,6 +10,11 @@ const state = {
   levelsRows: [],
   movementsRows: [],
   docsRows: [],
+  trash: {
+    items: [],
+    storage_areas: [],
+  },
+  auditRows: [],
   editAreaId: null,
   editItemId: null,
   editUserId: null,
@@ -17,6 +22,61 @@ const state = {
   tables: {
     levels: { page: 1, pageSize: 25, sortKey: 'item_name', sortDir: 'asc' },
     movements: { page: 1, pageSize: 50, sortKey: 'created_at', sortDir: 'desc' },
+    users: { page: 1, pageSize: 25, sortKey: 'name', sortDir: 'asc' },
+    audit: { page: 1, pageSize: 25, sortKey: 'created_at', sortDir: 'desc' },
+  },
+};
+
+const viewMeta = {
+  overview: {
+    title: 'Overview',
+    subtitle: 'Snapshot of stock, risk, and movement activity.',
+    searchPlaceholder: 'Search inventory records',
+  },
+  inventory: {
+    title: 'Inventory',
+    subtitle: 'Live quantity matrix across storage areas.',
+    searchPlaceholder: 'Search product, SKU, category, area',
+  },
+  movements: {
+    title: 'Movements',
+    subtitle: 'Apply stock changes and monitor movement history.',
+    searchPlaceholder: 'Search movement notes, references, items',
+  },
+  catalog: {
+    title: 'Catalog',
+    subtitle: 'Manage storage areas and products.',
+    searchPlaceholder: 'Use filters inside this page',
+  },
+  analytics: {
+    title: 'Analytics',
+    subtitle: 'Movement and inventory trend analysis.',
+    searchPlaceholder: 'Use filters inside this page',
+  },
+  admin: {
+    title: 'Admins',
+    subtitle: 'Owner control panel for admin users.',
+    searchPlaceholder: 'Search admin users',
+  },
+  trash: {
+    title: 'Trash',
+    subtitle: 'Review deleted records and restore them.',
+    searchPlaceholder: 'Search deleted records',
+  },
+  audit: {
+    title: 'Audit Log',
+    subtitle: 'Owner-level write action log and traceability.',
+    searchPlaceholder: 'Search audit actor, action, summary',
+  },
+  settings: {
+    title: 'Settings',
+    subtitle: 'System behavior and dashboard defaults.',
+    searchPlaceholder: 'Use filters inside this page',
+  },
+  docs: {
+    title: 'Docs',
+    subtitle: 'Internal API endpoint reference.',
+    searchPlaceholder: 'Search API endpoints in docs table',
   },
 };
 
@@ -58,10 +118,10 @@ function toast(message, isError = false) {
   const el = byId('toast');
   el.textContent = message;
   el.classList.remove('hidden');
-  el.style.background = isError ? '#8f2d2d' : '#12263a';
+  el.style.background = isError ? '#b42318' : '#111827';
 
   clearTimeout(el._timer);
-  el._timer = setTimeout(() => el.classList.add('hidden'), 2800);
+  el._timer = setTimeout(() => el.classList.add('hidden'), 3200);
 }
 
 function showAuth(isLoggedIn) {
@@ -69,27 +129,40 @@ function showAuth(isLoggedIn) {
   byId('app-shell').classList.toggle('hidden', !isLoggedIn);
 }
 
-function setView(view) {
-  state.view = view;
-  const titleMap = {
-    overview: 'Overview',
-    inventory: 'Inventory',
-    movements: 'Movements',
-    catalog: 'Catalog',
-    analytics: 'Analytics',
-    admin: 'Admin Controls',
-    docs: 'API Documentation',
-  };
+function setAuthBrandDefaults() {
+  byId('auth-site-name').textContent = 'Inventory Management System';
+  byId('auth-site-tagline').textContent = 'Track inventory, movements, controls, and admin actions in one place.';
+}
 
-  byId('view-title').textContent = titleMap[view] || 'Dashboard';
+function setView(view) {
+  const allowedView = ensureAllowedView(view);
+  state.view = allowedView;
+
+  const meta = viewMeta[allowedView] || viewMeta.overview;
+  byId('view-title').textContent = meta.title;
+  byId('view-subtitle').textContent = meta.subtitle;
+  byId('global-search').placeholder = meta.searchPlaceholder;
 
   document.querySelectorAll('.nav-btn[data-view]').forEach((button) => {
-    button.classList.toggle('active', button.dataset.view === view);
+    button.classList.toggle('active', button.dataset.view === allowedView);
   });
 
   document.querySelectorAll('.view[data-view-panel]').forEach((panel) => {
-    panel.classList.toggle('active', panel.dataset.viewPanel === view);
+    panel.classList.toggle('active', panel.dataset.viewPanel === allowedView);
   });
+
+  syncGlobalSearch(allowedView);
+  refreshViewData(allowedView).catch((error) => toast(error.message, true));
+}
+
+function ensureAllowedView(view) {
+  const allowed = new Set(['overview', 'inventory', 'movements', 'catalog', 'analytics', 'docs']);
+  if (canManageAdmin()) allowed.add('admin');
+  if (canViewTrash()) allowed.add('trash');
+  if (canViewAudit()) allowed.add('audit');
+  if (canManageSettings()) allowed.add('settings');
+
+  return allowed.has(view) ? view : 'overview';
 }
 
 function updateClock() {
@@ -116,6 +189,14 @@ function canManageSettings() {
   return !!state.capabilities.can_manage_settings;
 }
 
+function canViewTrash() {
+  return !!state.capabilities.can_view_trash;
+}
+
+function canViewAudit() {
+  return !!state.capabilities.can_view_audit;
+}
+
 function applyPermissionsUI() {
   const writeEnabled = canWrite();
   const settingsEnabled = canManageSettings() && writeEnabled;
@@ -128,16 +209,30 @@ function applyPermissionsUI() {
   toggleFormDisabled(byId('user-form'), !adminEnabled);
 
   byId('read-only-badge').classList.toggle('hidden', !state.settings.read_only_mode);
-  byId('admin-nav-btn').classList.toggle('hidden', !canManageAdmin() && !canManageSettings());
 
-  if (!canManageAdmin()) {
-    byId('admin-users-card').classList.add('hidden');
+  byId('nav-admin').classList.toggle('hidden', !canManageAdmin());
+  byId('nav-settings').classList.toggle('hidden', !canManageSettings());
+  byId('nav-trash').classList.toggle('hidden', !canViewTrash());
+  byId('nav-audit').classList.toggle('hidden', !canViewAudit());
+
+  byId('admin-users-card').classList.toggle('hidden', !canManageAdmin());
+
+  const role = String(state.user?.role || '').toUpperCase();
+  byId('user-badge').textContent = `${state.user?.name || '-'} (${role || 'USER'})`;
+
+  const openBadge = byId('site-open-badge');
+  openBadge.classList.remove('good', 'bad', 'warn');
+  if (state.settings.site_open) {
+    openBadge.textContent = 'Site Open';
+    openBadge.classList.add('good');
   } else {
-    byId('admin-users-card').classList.remove('hidden');
+    openBadge.textContent = 'Site Closed';
+    openBadge.classList.add('bad');
   }
 
-  if (!canManageAdmin() && !canManageSettings() && state.view === 'admin') {
-    setView('overview');
+  const safeView = ensureAllowedView(state.view);
+  if (safeView !== state.view) {
+    setView(safeView);
   }
 }
 
@@ -170,18 +265,38 @@ function bindSortHandlers() {
 
 function toggleSort(tableKey, sortKey, defaultDir = 'asc') {
   const table = state.tables[tableKey];
+  if (!table) {
+    return;
+  }
+
   if (table.sortKey === sortKey) {
     table.sortDir = table.sortDir === 'asc' ? 'desc' : 'asc';
   } else {
     table.sortKey = sortKey;
     table.sortDir = defaultDir;
   }
+
   table.page = 1;
 }
 
 function wireEvents() {
   byId('login-form').addEventListener('submit', onLogin);
   byId('logout-btn').addEventListener('click', onLogout);
+
+  byId('sidebar-toggle').addEventListener('click', () => {
+    document.body.classList.toggle('sidebar-collapsed');
+  });
+
+  byId('head-refresh').addEventListener('click', async () => {
+    try {
+      await refreshViewData(state.view, true);
+      toast('Refreshed.');
+    } catch (error) {
+      toast(error.message, true);
+    }
+  });
+
+  byId('global-search').addEventListener('input', debounce(applyGlobalSearch, 250));
 
   document.querySelectorAll('.nav-btn[data-view]').forEach((button) => {
     button.addEventListener('click', () => setView(button.dataset.view));
@@ -202,8 +317,18 @@ function wireEvents() {
   byId('user-reset').addEventListener('click', resetUserForm);
 
   byId('levels-refresh').addEventListener('click', loadLevels);
-  byId('levels-search').addEventListener('input', debounce(loadLevels, 250));
-  byId('levels-area-filter').addEventListener('change', loadLevels);
+  byId('levels-search').addEventListener('input', debounce(() => {
+    state.tables.levels.page = 1;
+    loadLevels();
+  }, 250));
+  byId('levels-area-filter').addEventListener('change', () => {
+    state.tables.levels.page = 1;
+    loadLevels();
+  });
+  byId('levels-status-filter').addEventListener('change', () => {
+    state.tables.levels.page = 1;
+    renderLevels();
+  });
   byId('levels-page-size').addEventListener('change', () => {
     state.tables.levels.page = 1;
     state.tables.levels.pageSize = Number(byId('levels-page-size').value || 25);
@@ -211,7 +336,10 @@ function wireEvents() {
   });
 
   byId('movements-refresh').addEventListener('click', loadMovements);
-  byId('movements-search').addEventListener('input', debounce(loadMovements, 300));
+  byId('movements-search').addEventListener('input', debounce(() => {
+    state.tables.movements.page = 1;
+    loadMovements();
+  }, 300));
   byId('movements-type-filter').addEventListener('change', loadMovements);
   byId('movements-date-from').addEventListener('change', loadMovements);
   byId('movements-date-to').addEventListener('change', loadMovements);
@@ -220,6 +348,27 @@ function wireEvents() {
     state.tables.movements.pageSize = Number(byId('movements-page-size').value || 50);
     renderMovements();
   });
+
+  byId('users-refresh').addEventListener('click', loadUsers);
+  byId('users-search').addEventListener('input', debounce(() => {
+    state.tables.users.page = 1;
+    loadUsers();
+  }, 250));
+  byId('users-role-filter').addEventListener('change', loadUsers);
+  byId('users-limit').addEventListener('change', loadUsers);
+
+  byId('trash-refresh').addEventListener('click', loadTrash);
+  byId('trash-search').addEventListener('input', debounce(loadTrash, 250));
+
+  byId('audit-refresh').addEventListener('click', loadAudit);
+  byId('audit-search').addEventListener('input', debounce(() => {
+    state.tables.audit.page = 1;
+    loadAudit();
+  }, 250));
+  byId('audit-entity-filter').addEventListener('change', loadAudit);
+  byId('audit-date-from').addEventListener('change', loadAudit);
+  byId('audit-date-to').addEventListener('change', loadAudit);
+  byId('audit-limit').addEventListener('change', loadAudit);
 
   bindSortHandlers();
 }
@@ -238,14 +387,10 @@ async function checkSession() {
     showAuth(true);
     await loadAll();
   } catch {
+    state.user = null;
     showAuth(false);
     setAuthBrandDefaults();
   }
-}
-
-function setAuthBrandDefaults() {
-  byId('auth-site-name').textContent = 'Inventory Management System';
-  byId('auth-site-tagline').textContent = 'Internal stock operations dashboard.';
 }
 
 async function onLogin(event) {
@@ -272,7 +417,7 @@ async function onLogout() {
   try {
     await api('/api/auth/logout', { method: 'POST' });
   } catch {
-    // ignore and force reset
+    // ignore
   }
 
   state.user = null;
@@ -283,14 +428,39 @@ async function onLogout() {
 
 async function loadAll() {
   await loadMeta();
-  await Promise.all([
+
+  const jobs = [
     loadSummary(),
     loadAnalytics(),
     loadLevels(),
     loadMovements(),
     loadDocs(),
-    loadUsers(),
-  ]);
+  ];
+
+  if (canManageAdmin()) {
+    jobs.push(loadUsers());
+  } else {
+    state.users = [];
+    renderUsers();
+  }
+
+  if (canViewTrash()) {
+    jobs.push(loadTrash());
+  } else {
+    state.trash.items = [];
+    state.trash.storage_areas = [];
+    renderTrash();
+  }
+
+  if (canViewAudit()) {
+    jobs.push(loadAudit());
+  } else {
+    state.auditRows = [];
+    renderAudit();
+  }
+
+  await Promise.all(jobs);
+  setView(ensureAllowedView(state.view));
 }
 
 async function loadMeta() {
@@ -302,19 +472,12 @@ async function loadMeta() {
   state.capabilities = payload.capabilities || {};
 
   const siteName = state.settings.site_name || 'Inventory Management System';
-  const siteTagline = state.settings.site_tagline || 'Internal stock operations dashboard';
+  const siteTagline = state.settings.site_tagline || 'Track inventory, movements, controls, and admin actions in one place.';
 
   byId('site-name').textContent = siteName;
   byId('site-tagline').textContent = siteTagline;
   byId('auth-site-name').textContent = siteName;
   byId('auth-site-tagline').textContent = siteTagline;
-
-  byId('user-badge').textContent = `${state.user?.name || ''} (${String(state.user?.role || '').toUpperCase()})`;
-
-  byId('site-open-badge').textContent = state.settings.site_open ? 'Site Open' : 'Site Closed';
-  byId('site-open-badge').style.background = state.settings.site_open ? '#edfdf4' : '#fff0f0';
-  byId('site-open-badge').style.borderColor = state.settings.site_open ? '#9dd5b8' : '#e5a3a3';
-  byId('site-open-badge').style.color = state.settings.site_open ? '#256041' : '#8f2d2d';
 
   const pageSize = Number(state.settings.table_page_size || 25);
   state.tables.levels.pageSize = pageSize;
@@ -323,11 +486,11 @@ async function loadMeta() {
   byId('movements-page-size').value = String(Math.max(20, pageSize));
 
   hydrateSettingsForm();
-  applyPermissionsUI();
   renderMovementOptions();
   renderAreaFilter();
   renderAreas();
   renderItems();
+  applyPermissionsUI();
 }
 
 function hydrateSettingsForm() {
@@ -363,18 +526,15 @@ async function loadLevels() {
   const search = byId('levels-search').value.trim();
   const area = byId('levels-area-filter').value;
 
-  if (search) {
-    params.set('search', search);
-  }
-  if (area) {
-    params.set('storage_area_id', area);
-  }
+  if (search) params.set('search', search);
+  if (area) params.set('storage_area_id', area);
 
   const suffix = params.toString() ? `?${params.toString()}` : '';
   const payload = await api(`/api/inventory/levels${suffix}`);
   state.levelsRows = payload.data || [];
   state.tables.levels.page = 1;
   renderLevels();
+  renderInventoryHealth();
 }
 
 async function loadMovements() {
@@ -403,9 +563,67 @@ async function loadUsers() {
     return;
   }
 
-  const payload = await api('/api/admin/users');
+  const params = new URLSearchParams();
+  const search = byId('users-search').value.trim();
+  const role = byId('users-role-filter').value;
+  const limit = byId('users-limit').value;
+
+  if (search) params.set('search', search);
+  if (role) params.set('role', role);
+  if (limit) params.set('limit', limit);
+
+  const suffix = params.toString() ? `?${params.toString()}` : '';
+  const payload = await api(`/api/admin/users${suffix}`);
   state.users = payload.data || [];
+  state.tables.users.page = 1;
   renderUsers();
+}
+
+async function loadTrash() {
+  if (!canViewTrash()) {
+    state.trash.items = [];
+    state.trash.storage_areas = [];
+    renderTrash();
+    return;
+  }
+
+  const params = new URLSearchParams();
+  const search = byId('trash-search').value.trim();
+  if (search) params.set('search', search);
+  params.set('limit', '300');
+
+  const payload = await api(`/api/trash?${params.toString()}`);
+  const data = payload.data || {};
+  state.trash.items = data.items || [];
+  state.trash.storage_areas = data.storage_areas || [];
+  renderTrash();
+}
+
+async function loadAudit() {
+  if (!canViewAudit()) {
+    state.auditRows = [];
+    renderAudit();
+    return;
+  }
+
+  const params = new URLSearchParams();
+  const search = byId('audit-search').value.trim();
+  const entity = byId('audit-entity-filter').value;
+  const dateFrom = byId('audit-date-from').value;
+  const dateTo = byId('audit-date-to').value;
+  const limit = byId('audit-limit').value;
+
+  if (search) params.set('search', search);
+  if (entity) params.set('entity_type', entity);
+  if (dateFrom) params.set('date_from', dateFrom);
+  if (dateTo) params.set('date_to', dateTo);
+  if (limit) params.set('limit', limit);
+
+  const suffix = params.toString() ? `?${params.toString()}` : '';
+  const payload = await api(`/api/audit-logs${suffix}`);
+  state.auditRows = payload.data || [];
+  state.tables.audit.page = 1;
+  renderAudit();
 }
 
 async function loadDocs() {
@@ -418,16 +636,77 @@ function renderSummary(summary) {
   const cards = [
     ['Total Items', summary.total_items || 0],
     ['Storage Areas', summary.total_storage_areas || 0],
-    ['Units in Stock', formatNumber(summary.total_quantity || 0)],
+    ['Units In Stock', formatNumber(summary.total_quantity || 0)],
     ['Low Stock', summary.low_stock_items || 0],
     ['Movements Today', summary.movements_today || 0],
     ['Inbound Today', formatNumber(summary.inbound_today || 0)],
     ['Outbound Today', formatNumber(summary.outbound_today || 0)],
+    ['Currency', state.settings.default_currency || 'USD'],
   ];
 
   byId('summary-grid').innerHTML = cards
-    .map(([label, value]) => `<article class="kpi"><div class="label">${escapeHtml(label)}</div><div class="value">${escapeHtml(String(value))}</div></article>`)
+    .map(([label, value]) => `
+      <article class="kpi">
+        <div class="label">${escapeHtml(label)}</div>
+        <div class="value">${escapeHtml(String(value))}</div>
+      </article>
+    `)
     .join('');
+}
+
+function renderInventoryHealth() {
+  const root = byId('inventory-health');
+  root.innerHTML = '';
+
+  const byItem = new Map();
+  for (const row of state.levelsRows) {
+    const itemId = Number(row.item_id);
+    if (!byItem.has(itemId)) {
+      byItem.set(itemId, {
+        total: Number(row.total_item_quantity || 0),
+        reorder: Number(row.reorder_level || 0),
+      });
+    }
+  }
+
+  const totals = {
+    in: 0,
+    low: 0,
+    out: 0,
+  };
+
+  for (const info of byItem.values()) {
+    if (info.total <= 0) {
+      totals.out += 1;
+    } else if (info.reorder > 0 && info.total <= info.reorder) {
+      totals.low += 1;
+    } else {
+      totals.in += 1;
+    }
+  }
+
+  const count = totals.in + totals.low + totals.out;
+  if (count === 0) {
+    root.innerHTML = '<p class="hint">No inventory records yet.</p>';
+    return;
+  }
+
+  const widthIn = Math.max(0, Math.round((totals.in / count) * 100));
+  const widthLow = Math.max(0, Math.round((totals.low / count) * 100));
+  const widthOut = Math.max(0, 100 - widthIn - widthLow);
+
+  root.innerHTML = `
+    <div class="health-track">
+      <div class="health-segment in" style="width:${widthIn}%"></div>
+      <div class="health-segment low" style="width:${widthLow}%"></div>
+      <div class="health-segment out" style="width:${widthOut}%"></div>
+    </div>
+    <div class="health-legend">
+      <span class="health-chip in">In stock: ${formatNumber(totals.in)}</span>
+      <span class="health-chip low">Low stock: ${formatNumber(totals.low)}</span>
+      <span class="health-chip out">Out of stock: ${formatNumber(totals.out)}</span>
+    </div>
+  `;
 }
 
 function renderLowStock(rows) {
@@ -465,16 +744,16 @@ function renderStockByArea(rows) {
   for (const row of rows) {
     const qty = Number(row.total_quantity || 0);
     const width = Math.max(2, Math.round((qty / max) * 100));
-    const container = document.createElement('div');
-    container.className = 'bar';
-    container.innerHTML = `
+    const block = document.createElement('div');
+    block.className = 'bar';
+    block.innerHTML = `
       <div class="bar-head">
         <span>${escapeHtml(row.code)} - ${escapeHtml(row.name)}</span>
         <strong>${formatNumber(qty)}</strong>
       </div>
-      <div class="bar-track"><div class="bar-fill" style="width: ${width}%"></div></div>
+      <div class="bar-track"><div class="bar-fill" style="width:${width}%"></div></div>
     `;
-    root.appendChild(container);
+    root.appendChild(block);
   }
 }
 
@@ -500,17 +779,17 @@ function renderTrend(rows) {
     const inHeight = Math.max(2, Math.round(120 * scale * (inbound / (total || 1))));
     const outHeight = Math.max(2, Math.round(120 * scale * (outbound / (total || 1))));
 
-    const column = document.createElement('div');
-    column.className = 'trend-col';
-    column.title = `${row.day}: in ${formatNumber(inbound)} / out ${formatNumber(outbound)}`;
-    column.innerHTML = `
+    const col = document.createElement('div');
+    col.className = 'trend-col';
+    col.title = `${row.day}: in ${formatNumber(inbound)} / out ${formatNumber(outbound)}`;
+    col.innerHTML = `
       <div class="trend-stack">
         <div class="trend-in" style="height:${inHeight}px"></div>
         <div class="trend-out" style="height:${outHeight}px"></div>
       </div>
       <div class="trend-day">${escapeHtml(row.day.slice(5))}</div>
     `;
-    root.appendChild(column);
+    root.appendChild(col);
   }
 }
 
@@ -540,7 +819,7 @@ function renderCategoryMix(rows) {
   root.innerHTML = '';
 
   if (!rows.length) {
-    root.innerHTML = '<p class="hint">No category analytics yet.</p>';
+    root.innerHTML = '<p class="hint">No category data.</p>';
     return;
   }
 
@@ -589,7 +868,10 @@ function renderMovementOptions() {
 
   itemSelect.innerHTML = '<option value="">Select item</option>';
   for (const item of state.items) {
-    if (Number(item.is_active) !== 1) continue;
+    if (Number(item.is_active) !== 1) {
+      continue;
+    }
+
     const option = document.createElement('option');
     option.value = item.id;
     option.textContent = `${item.sku} - ${item.name}`;
@@ -597,7 +879,11 @@ function renderMovementOptions() {
   }
 
   const areaHtml = ['<option value="">Select area</option>']
-    .concat(state.areas.filter((area) => Number(area.is_active) === 1).map((area) => `<option value="${area.id}">${escapeHtml(area.code)} - ${escapeHtml(area.name)}</option>`))
+    .concat(
+      state.areas
+        .filter((area) => Number(area.is_active) === 1)
+        .map((area) => `<option value="${area.id}">${escapeHtml(area.code)} - ${escapeHtml(area.name)}</option>`)
+    )
     .join('');
 
   fromArea.innerHTML = areaHtml;
@@ -611,7 +897,10 @@ function renderAreaFilter() {
   filter.innerHTML = '<option value="">All Areas</option>';
 
   for (const area of state.areas) {
-    if (Number(area.is_active) !== 1) continue;
+    if (Number(area.is_active) !== 1) {
+      continue;
+    }
+
     const option = document.createElement('option');
     option.value = area.id;
     option.textContent = `${area.code} - ${area.name}`;
@@ -623,16 +912,22 @@ function renderAreas() {
   const tbody = byId('areas-table');
   tbody.innerHTML = '';
 
+  if (!state.areas.length) {
+    tbody.innerHTML = '<tr><td colspan="4">No storage areas found.</td></tr>';
+    return;
+  }
+
   for (const area of state.areas) {
+    const active = Number(area.is_active) === 1;
     const tr = document.createElement('tr');
     tr.innerHTML = `
       <td>${escapeHtml(area.code)}</td>
       <td>${escapeHtml(area.name)}</td>
-      <td><span class="status ${Number(area.is_active) ? 'on' : 'off'}">${Number(area.is_active) ? 'Active' : 'Inactive'}</span></td>
+      <td><span class="status-pill ${active ? 'in' : 'out'}">${active ? 'Active' : 'Inactive'}</span></td>
       <td>
         <div class="actions">
           <button class="btn ghost" data-area-edit="${area.id}" ${canWrite() ? '' : 'disabled'}>Edit</button>
-          <button class="btn danger" data-area-del="${area.id}" ${canWrite() ? '' : 'disabled'}>Delete</button>
+          <button class="btn danger" data-area-del="${area.id}" ${canWrite() ? '' : 'disabled'}>Trash</button>
         </div>
       </td>
     `;
@@ -642,7 +937,9 @@ function renderAreas() {
   tbody.querySelectorAll('[data-area-edit]').forEach((button) => {
     button.addEventListener('click', () => {
       const area = state.areas.find((row) => Number(row.id) === Number(button.dataset.areaEdit));
-      if (!area) return;
+      if (!area) {
+        return;
+      }
 
       state.editAreaId = Number(area.id);
       byId('area-id').value = area.id;
@@ -656,15 +953,28 @@ function renderAreas() {
 
   tbody.querySelectorAll('[data-area-del]').forEach((button) => {
     button.addEventListener('click', async () => {
-      if (!canWrite()) return;
+      if (!canWrite()) {
+        return;
+      }
+
       const areaId = Number(button.dataset.areaDel);
-      if (!confirm('Delete this storage area?')) return;
+      if (!confirm('Move this storage area to trash?')) {
+        return;
+      }
 
       try {
         await api(`/api/storage-areas/${areaId}`, { method: 'DELETE' });
-        if (state.editAreaId === areaId) resetAreaForm();
+        if (state.editAreaId === areaId) {
+          resetAreaForm();
+        }
         await reloadMasterData();
-        toast('Storage area deleted.');
+        if (canViewTrash()) {
+          await loadTrash();
+        }
+        if (canViewAudit()) {
+          await loadAudit();
+        }
+        toast('Storage area moved to trash.');
       } catch (error) {
         toast(error.message, true);
       }
@@ -676,18 +986,24 @@ function renderItems() {
   const tbody = byId('items-table');
   tbody.innerHTML = '';
 
+  if (!state.items.length) {
+    tbody.innerHTML = '<tr><td colspan="6">No items found.</td></tr>';
+    return;
+  }
+
   for (const item of state.items) {
+    const active = Number(item.is_active) === 1;
     const tr = document.createElement('tr');
     tr.innerHTML = `
       <td>${escapeHtml(item.sku)}</td>
       <td>${escapeHtml(item.name)}</td>
       <td>${escapeHtml(item.category || '-')}</td>
       <td>${formatNumber(item.reorder_level)}</td>
-      <td><span class="status ${Number(item.is_active) ? 'on' : 'off'}">${Number(item.is_active) ? 'Active' : 'Inactive'}</span></td>
+      <td><span class="status-pill ${active ? 'in' : 'out'}">${active ? 'Active' : 'Inactive'}</span></td>
       <td>
         <div class="actions">
           <button class="btn ghost" data-item-edit="${item.id}" ${canWrite() ? '' : 'disabled'}>Edit</button>
-          <button class="btn danger" data-item-del="${item.id}" ${canWrite() ? '' : 'disabled'}>Delete</button>
+          <button class="btn danger" data-item-del="${item.id}" ${canWrite() ? '' : 'disabled'}>Trash</button>
         </div>
       </td>
     `;
@@ -697,7 +1013,9 @@ function renderItems() {
   tbody.querySelectorAll('[data-item-edit]').forEach((button) => {
     button.addEventListener('click', () => {
       const item = state.items.find((row) => Number(row.id) === Number(button.dataset.itemEdit));
-      if (!item) return;
+      if (!item) {
+        return;
+      }
 
       state.editItemId = Number(item.id);
       byId('item-id').value = item.id;
@@ -714,15 +1032,28 @@ function renderItems() {
 
   tbody.querySelectorAll('[data-item-del]').forEach((button) => {
     button.addEventListener('click', async () => {
-      if (!canWrite()) return;
+      if (!canWrite()) {
+        return;
+      }
+
       const itemId = Number(button.dataset.itemDel);
-      if (!confirm('Delete this item? Existing movement history may block deletion.')) return;
+      if (!confirm('Move this item to trash?')) {
+        return;
+      }
 
       try {
         await api(`/api/items/${itemId}`, { method: 'DELETE' });
-        if (state.editItemId === itemId) resetItemForm();
+        if (state.editItemId === itemId) {
+          resetItemForm();
+        }
         await reloadMasterData();
-        toast('Item deleted.');
+        if (canViewTrash()) {
+          await loadTrash();
+        }
+        if (canViewAudit()) {
+          await loadAudit();
+        }
+        toast('Item moved to trash.');
       } catch (error) {
         toast(error.message, true);
       }
@@ -730,9 +1061,29 @@ function renderItems() {
   });
 }
 
+function statusForInventoryRow(row) {
+  const total = Number(row.total_item_quantity || 0);
+  const reorder = Number(row.reorder_level || 0);
+
+  if (total <= 0) {
+    return { key: 'out', label: 'Out of stock' };
+  }
+
+  if (reorder > 0 && total <= reorder) {
+    return { key: 'low', label: 'Low stock' };
+  }
+
+  return { key: 'in', label: 'In stock' };
+}
+
 function renderLevels() {
   const tableState = state.tables.levels;
-  const source = applySorting(state.levelsRows, tableState.sortKey, tableState.sortDir);
+  const sortRows = applySorting(state.levelsRows, tableState.sortKey, tableState.sortDir);
+  const statusFilter = byId('levels-status-filter').value;
+  const source = statusFilter
+    ? sortRows.filter((row) => statusForInventoryRow(row).key === statusFilter)
+    : sortRows;
+
   const page = paginate(source, tableState.page, tableState.pageSize);
   tableState.page = page.page;
 
@@ -746,16 +1097,24 @@ function renderLevels() {
   }
 
   for (const row of page.rows) {
-    const low = Number(row.reorder_level) > 0 && Number(row.total_item_quantity) <= Number(row.reorder_level);
+    const status = statusForInventoryRow(row);
     const tr = document.createElement('tr');
     tr.innerHTML = `
-      <td>${escapeHtml(row.item_name)}</td>
-      <td>${escapeHtml(row.sku)}</td>
+      <td>
+        <div class="product-cell">
+          <span class="avatar-dot">${escapeHtml(String(row.item_name || '?').slice(0, 1).toUpperCase())}</span>
+          <div>
+            <strong>${escapeHtml(row.item_name)}</strong>
+            <p class="hint">${escapeHtml(row.unit || 'unit')}</p>
+          </div>
+        </div>
+      </td>
       <td>${escapeHtml(row.category || '-')}</td>
+      <td>${escapeHtml(row.sku)}</td>
       <td>${escapeHtml(row.storage_area_name)}</td>
-      <td>${formatNumber(row.quantity)} ${escapeHtml(row.unit || '')}</td>
-      <td class="${low ? 'low' : ''}">${formatNumber(row.total_item_quantity)} ${escapeHtml(row.unit || '')}</td>
-      <td>${formatNumber(row.reorder_level)}</td>
+      <td>${formatNumber(row.quantity)}</td>
+      <td class="${status.key === 'low' ? 'low' : ''}">${formatNumber(row.total_item_quantity)}</td>
+      <td><span class="status-pill ${status.key}">${status.label}</span></td>
       <td><button class="btn ghost" data-set-level="${row.item_id}:${row.storage_area_id}:${row.quantity}" ${canWrite() ? '' : 'disabled'}>Set</button></td>
     `;
     tbody.appendChild(tr);
@@ -763,10 +1122,15 @@ function renderLevels() {
 
   tbody.querySelectorAll('[data-set-level]').forEach((button) => {
     button.addEventListener('click', async () => {
-      if (!canWrite()) return;
+      if (!canWrite()) {
+        return;
+      }
+
       const [itemId, areaId, current] = button.dataset.setLevel.split(':');
       const answer = prompt(`Set absolute quantity (current ${current})`, current);
-      if (answer === null) return;
+      if (answer === null) {
+        return;
+      }
 
       const target = Number(answer);
       if (!Number.isFinite(target) || target < 0) {
@@ -787,6 +1151,9 @@ function renderLevels() {
         });
 
         await refreshOperationalData();
+        if (canViewAudit()) {
+          await loadAudit();
+        }
         toast('Quantity updated.');
       } catch (error) {
         toast(error.message, true);
@@ -816,7 +1183,7 @@ function renderMovements() {
     const tr = document.createElement('tr');
     tr.innerHTML = `
       <td>${escapeHtml(formatDate(row.created_at))}</td>
-      <td>${escapeHtml(row.movement_type)}</td>
+      <td><span class="type-pill">${escapeHtml(row.movement_type)}</span></td>
       <td>${escapeHtml(row.item_sku)} - ${escapeHtml(row.item_name)}</td>
       <td>${formatSigned(row.quantity)}</td>
       <td>${escapeHtml(row.from_storage_area_name || '-')}</td>
@@ -836,21 +1203,35 @@ function renderUsers() {
   tbody.innerHTML = '';
 
   if (!canManageAdmin()) {
-    tbody.innerHTML = '<tr><td colspan="5">Owner access required.</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="6">Owner access required.</td></tr>';
+    byId('users-pager').innerHTML = '';
     return;
   }
 
-  for (const user of state.users) {
+  const tableState = state.tables.users;
+  const source = applySorting(state.users, tableState.sortKey, tableState.sortDir);
+  const page = paginate(source, tableState.page, tableState.pageSize);
+  tableState.page = page.page;
+
+  if (!page.rows.length) {
+    tbody.innerHTML = '<tr><td colspan="6">No users found.</td></tr>';
+    renderPager('users-pager', 'users', page.totalRows, page.totalPages);
+    return;
+  }
+
+  for (const user of page.rows) {
+    const active = Number(user.is_active) === 1;
     const tr = document.createElement('tr');
     tr.innerHTML = `
       <td>${escapeHtml(user.name)}</td>
       <td>${escapeHtml(user.email)}</td>
-      <td>${escapeHtml(String(user.role).toUpperCase())}</td>
-      <td><span class="status ${Number(user.is_active) ? 'on' : 'off'}">${Number(user.is_active) ? 'Active' : 'Inactive'}</span></td>
+      <td>${escapeHtml(String(user.role || '').toUpperCase())}</td>
+      <td><span class="status-pill ${active ? 'in' : 'out'}">${active ? 'Active' : 'Inactive'}</span></td>
+      <td>${escapeHtml(formatDate(user.created_at))}</td>
       <td>
         <div class="actions">
           <button class="btn ghost" data-user-edit="${user.id}" ${canWrite() ? '' : 'disabled'}>Edit</button>
-          <button class="btn ghost" data-user-toggle="${user.id}" ${canWrite() ? '' : 'disabled'}>${Number(user.is_active) ? 'Disable' : 'Enable'}</button>
+          <button class="btn ghost" data-user-toggle="${user.id}" ${canWrite() ? '' : 'disabled'}>${active ? 'Disable' : 'Enable'}</button>
         </div>
       </td>
     `;
@@ -860,7 +1241,9 @@ function renderUsers() {
   tbody.querySelectorAll('[data-user-edit]').forEach((button) => {
     button.addEventListener('click', () => {
       const user = state.users.find((row) => Number(row.id) === Number(button.dataset.userEdit));
-      if (!user) return;
+      if (!user) {
+        return;
+      }
 
       state.editUserId = Number(user.id);
       byId('user-id').value = user.id;
@@ -875,10 +1258,15 @@ function renderUsers() {
 
   tbody.querySelectorAll('[data-user-toggle]').forEach((button) => {
     button.addEventListener('click', async () => {
-      if (!canWrite()) return;
+      if (!canWrite()) {
+        return;
+      }
+
       const userId = Number(button.dataset.userToggle);
       const user = state.users.find((row) => Number(row.id) === userId);
-      if (!user) return;
+      if (!user) {
+        return;
+      }
 
       try {
         await api(`/api/admin/users/${userId}`, {
@@ -887,18 +1275,154 @@ function renderUsers() {
             is_active: Number(user.is_active) !== 1,
           },
         });
+
         await loadUsers();
+        if (canViewAudit()) {
+          await loadAudit();
+        }
         toast('User status updated.');
       } catch (error) {
         toast(error.message, true);
       }
     });
   });
+
+  renderPager('users-pager', 'users', page.totalRows, page.totalPages);
+}
+
+function renderTrash() {
+  const itemsBody = byId('trash-items-table');
+  const areasBody = byId('trash-areas-table');
+  itemsBody.innerHTML = '';
+  areasBody.innerHTML = '';
+
+  if (!canViewTrash()) {
+    itemsBody.innerHTML = '<tr><td colspan="6">Manager or owner access required.</td></tr>';
+    areasBody.innerHTML = '<tr><td colspan="5">Manager or owner access required.</td></tr>';
+    return;
+  }
+
+  if (!state.trash.items.length) {
+    itemsBody.innerHTML = '<tr><td colspan="6">No deleted items.</td></tr>';
+  } else {
+    for (const row of state.trash.items) {
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td>${escapeHtml(row.name)}</td>
+        <td>${escapeHtml(row.sku)}</td>
+        <td>${escapeHtml(row.category || '-')}</td>
+        <td>${escapeHtml(row.deleted_by_name || row.deleted_by_email || '-')}</td>
+        <td>${escapeHtml(formatDate(row.deleted_at))}</td>
+        <td><button class="btn ghost" data-restore-item="${row.id}" ${canWrite() ? '' : 'disabled'}>Restore</button></td>
+      `;
+      itemsBody.appendChild(tr);
+    }
+  }
+
+  if (!state.trash.storage_areas.length) {
+    areasBody.innerHTML = '<tr><td colspan="5">No deleted storage areas.</td></tr>';
+  } else {
+    for (const row of state.trash.storage_areas) {
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td>${escapeHtml(row.code)}</td>
+        <td>${escapeHtml(row.name)}</td>
+        <td>${escapeHtml(row.deleted_by_name || row.deleted_by_email || '-')}</td>
+        <td>${escapeHtml(formatDate(row.deleted_at))}</td>
+        <td><button class="btn ghost" data-restore-area="${row.id}" ${canWrite() ? '' : 'disabled'}>Restore</button></td>
+      `;
+      areasBody.appendChild(tr);
+    }
+  }
+
+  itemsBody.querySelectorAll('[data-restore-item]').forEach((button) => {
+    button.addEventListener('click', () => restoreFromTrash('items', Number(button.dataset.restoreItem)));
+  });
+
+  areasBody.querySelectorAll('[data-restore-area]').forEach((button) => {
+    button.addEventListener('click', () => restoreFromTrash('storage_areas', Number(button.dataset.restoreArea)));
+  });
+}
+
+async function restoreFromTrash(entity, id) {
+  if (!canWrite()) {
+    return;
+  }
+
+  const label = entity === 'items' ? 'item' : 'storage area';
+  if (!confirm(`Restore this ${label}?`)) {
+    return;
+  }
+
+  try {
+    await api(`/api/trash/${entity}/${id}/restore`, { method: 'POST' });
+    await reloadMasterData();
+    await loadTrash();
+    if (canViewAudit()) {
+      await loadAudit();
+    }
+    toast('Record restored.');
+  } catch (error) {
+    toast(error.message, true);
+  }
+}
+
+function renderAudit() {
+  const tbody = byId('audit-table');
+  tbody.innerHTML = '';
+
+  if (!canViewAudit()) {
+    tbody.innerHTML = '<tr><td colspan="8">Owner access required.</td></tr>';
+    byId('audit-pager').innerHTML = '';
+    return;
+  }
+
+  const tableState = state.tables.audit;
+  const source = applySorting(state.auditRows, tableState.sortKey, tableState.sortDir);
+  const page = paginate(source, tableState.page, tableState.pageSize);
+  tableState.page = page.page;
+
+  if (!page.rows.length) {
+    tbody.innerHTML = '<tr><td colspan="8">No audit records for this filter.</td></tr>';
+    renderPager('audit-pager', 'audit', page.totalRows, page.totalPages);
+    return;
+  }
+
+  for (const row of page.rows) {
+    const statusClass = Number(row.status_code) >= 400 ? 'bad' : 'good';
+    const entity = row.entity_id ? `${row.entity_type}:${row.entity_id}` : row.entity_type;
+
+    let metaHtml = '-';
+    if (row.metadata && typeof row.metadata === 'object') {
+      const json = escapeHtml(JSON.stringify(row.metadata, null, 2));
+      metaHtml = `<details class="meta-details"><summary>View</summary><pre>${json}</pre></details>`;
+    }
+
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td>${escapeHtml(formatDate(row.created_at))}</td>
+      <td>${escapeHtml(row.actor_name || '-')}${row.actor_email ? `<br><span class="hint">${escapeHtml(row.actor_email)}</span>` : ''}</td>
+      <td>${escapeHtml(String(row.actor_role || '').toUpperCase() || '-')}</td>
+      <td><code>${escapeHtml(row.action || '-')}</code></td>
+      <td>${escapeHtml(entity || '-')}</td>
+      <td><span class="badge ${statusClass}">${escapeHtml(String(row.status_code || '-'))}</span></td>
+      <td>${escapeHtml(row.summary || '-')}</td>
+      <td>${metaHtml}</td>
+    `;
+    tbody.appendChild(tr);
+  }
+
+  renderPager('audit-pager', 'audit', page.totalRows, page.totalPages);
 }
 
 function renderDocs() {
   const tbody = byId('api-docs-table');
   tbody.innerHTML = '';
+
+  if (!state.docsRows.length) {
+    tbody.innerHTML = '<tr><td colspan="3">API docs unavailable.</td></tr>';
+    return;
+  }
 
   for (const endpoint of state.docsRows) {
     const tr = document.createElement('tr');
@@ -909,15 +1433,14 @@ function renderDocs() {
     `;
     tbody.appendChild(tr);
   }
-
-  if (!state.docsRows.length) {
-    tbody.innerHTML = '<tr><td colspan="3">API docs unavailable.</td></tr>';
-  }
 }
 
 function renderPager(containerId, tableKey, totalRows, totalPages) {
   const container = byId(containerId);
   const table = state.tables[tableKey];
+  if (!container || !table) {
+    return;
+  }
 
   container.innerHTML = `
     <div>${totalRows} rows</div>
@@ -928,20 +1451,31 @@ function renderPager(containerId, tableKey, totalRows, totalPages) {
     </div>
   `;
 
+  const rerender = {
+    levels: renderLevels,
+    movements: renderMovements,
+    users: renderUsers,
+    audit: renderAudit,
+  }[tableKey];
+
   const prev = container.querySelector(`[data-pager-prev="${tableKey}"]`);
   const next = container.querySelector(`[data-pager-next="${tableKey}"]`);
 
   if (prev) {
     prev.addEventListener('click', () => {
       table.page = Math.max(1, table.page - 1);
-      tableKey === 'levels' ? renderLevels() : renderMovements();
+      if (rerender) {
+        rerender();
+      }
     });
   }
 
   if (next) {
     next.addEventListener('click', () => {
       table.page = Math.min(Math.max(totalPages, 1), table.page + 1);
-      tableKey === 'levels' ? renderLevels() : renderMovements();
+      if (rerender) {
+        rerender();
+      }
     });
   }
 }
@@ -998,14 +1532,14 @@ function updateMovementFields() {
   byId('move-qty-wrap').classList.remove('hidden');
   byId('move-target-wrap').classList.add('hidden');
 
+  byId('move-quantity').min = '0.001';
+
   if (type === 'receive') {
     byId('move-from-wrap').classList.add('hidden');
-    byId('move-quantity').min = '0.001';
   }
 
   if (type === 'issue') {
     byId('move-to-wrap').classList.add('hidden');
-    byId('move-quantity').min = '0.001';
   }
 
   if (type === 'adjust') {
@@ -1022,32 +1556,82 @@ function updateMovementFields() {
 
 async function onApplyMovement(event) {
   event.preventDefault();
+
   if (!canWrite()) {
     toast('You do not have write access right now.', true);
     return;
   }
 
-  const payload = {
-    movement_type: byId('move-type').value,
-    item_id: Number(byId('move-item').value),
-    quantity: Number(byId('move-quantity').value),
-    target_quantity: Number(byId('move-target').value),
-    from_storage_area_id: Number(byId('move-from').value),
-    to_storage_area_id: Number(byId('move-to').value),
-    reference: byId('move-reference').value.trim(),
-    note: byId('move-note').value.trim(),
-  };
+  const type = byId('move-type').value;
+  const itemId = Number(byId('move-item').value);
+  const quantity = Number(byId('move-quantity').value);
+  const target = Number(byId('move-target').value);
+  const fromAreaId = Number(byId('move-from').value);
+  const toAreaId = Number(byId('move-to').value);
 
-  if (!payload.item_id) {
+  if (!itemId) {
     toast('Pick an item first.', true);
     return;
   }
 
+  const payload = {
+    movement_type: type,
+    item_id: itemId,
+    quantity,
+    target_quantity: target,
+    from_storage_area_id: fromAreaId,
+    to_storage_area_id: toAreaId,
+    storage_area_id: toAreaId,
+    reference: byId('move-reference').value.trim(),
+    note: byId('move-note').value.trim(),
+  };
+
+  if (type === 'receive' && !toAreaId) {
+    toast('Select destination area.', true);
+    return;
+  }
+
+  if (type === 'issue' && !fromAreaId) {
+    toast('Select source area.', true);
+    return;
+  }
+
+  if (type === 'transfer' && (!fromAreaId || !toAreaId)) {
+    toast('Select both source and destination areas.', true);
+    return;
+  }
+
+  if (type === 'adjust' && !toAreaId) {
+    toast('Select area for adjustment.', true);
+    return;
+  }
+
+  if (type === 'set') {
+    if (!toAreaId) {
+      toast('Select area for absolute set.', true);
+      return;
+    }
+    if (!Number.isFinite(target) || target < 0) {
+      toast('Target quantity must be 0 or greater.', true);
+      return;
+    }
+  } else if (!Number.isFinite(quantity) || (type !== 'adjust' && quantity <= 0) || (type === 'adjust' && quantity === 0)) {
+    toast(type === 'adjust' ? 'Adjustment quantity cannot be 0.' : 'Quantity must be greater than 0.', true);
+    return;
+  }
+
   try {
-    await api('/api/inventory/movements', { method: 'POST', body: payload });
+    await api('/api/inventory/movements', {
+      method: 'POST',
+      body: payload,
+    });
+
     byId('movement-form').reset();
     updateMovementFields();
     await refreshOperationalData();
+    if (canViewAudit()) {
+      await loadAudit();
+    }
     toast('Movement applied.');
   } catch (error) {
     toast(error.message, true);
@@ -1056,6 +1640,7 @@ async function onApplyMovement(event) {
 
 async function onSaveArea(event) {
   event.preventDefault();
+
   if (!canWrite()) {
     toast('You do not have write access right now.', true);
     return;
@@ -1079,6 +1664,9 @@ async function onSaveArea(event) {
 
     resetAreaForm();
     await reloadMasterData();
+    if (canViewAudit()) {
+      await loadAudit();
+    }
   } catch (error) {
     toast(error.message, true);
   }
@@ -1093,6 +1681,7 @@ function resetAreaForm() {
 
 async function onSaveItem(event) {
   event.preventDefault();
+
   if (!canWrite()) {
     toast('You do not have write access right now.', true);
     return;
@@ -1119,6 +1708,9 @@ async function onSaveItem(event) {
 
     resetItemForm();
     await reloadMasterData();
+    if (canViewAudit()) {
+      await loadAudit();
+    }
   } catch (error) {
     toast(error.message, true);
   }
@@ -1141,6 +1733,11 @@ async function onSaveSettings(event) {
     return;
   }
 
+  if (!canWrite()) {
+    toast('Write access is disabled right now.', true);
+    return;
+  }
+
   const payload = {
     site_name: byId('set-site-name').value.trim(),
     site_tagline: byId('set-site-tagline').value.trim(),
@@ -1159,9 +1756,12 @@ async function onSaveSettings(event) {
     });
 
     state.settings = response.data || state.settings;
-    applyPermissionsUI();
     hydrateSettingsForm();
+    applyPermissionsUI();
     await Promise.all([loadSummary(), loadAnalytics()]);
+    if (canViewAudit()) {
+      await loadAudit();
+    }
     toast('Settings updated.');
   } catch (error) {
     toast(error.message, true);
@@ -1207,6 +1807,9 @@ async function onSaveUser(event) {
 
     resetUserForm();
     await loadUsers();
+    if (canViewAudit()) {
+      await loadAudit();
+    }
   } catch (error) {
     toast(error.message, true);
   }
@@ -1229,24 +1832,142 @@ async function refreshOperationalData() {
   await Promise.all([loadSummary(), loadAnalytics(), loadLevels(), loadMovements()]);
 }
 
+async function refreshViewData(view, force = false) {
+  if (!state.user) {
+    return;
+  }
+
+  if (force) {
+    await loadMeta();
+  }
+
+  if (view === 'overview') {
+    await Promise.all([loadSummary(), loadAnalytics(), loadLevels()]);
+    return;
+  }
+
+  if (view === 'inventory') {
+    await loadLevels();
+    return;
+  }
+
+  if (view === 'movements') {
+    await loadMovements();
+    return;
+  }
+
+  if (view === 'catalog') {
+    await loadMeta();
+    return;
+  }
+
+  if (view === 'analytics') {
+    await loadAnalytics();
+    return;
+  }
+
+  if (view === 'admin' && canManageAdmin()) {
+    await loadUsers();
+    return;
+  }
+
+  if (view === 'trash' && canViewTrash()) {
+    await loadTrash();
+    return;
+  }
+
+  if (view === 'audit' && canViewAudit()) {
+    await loadAudit();
+    return;
+  }
+
+  if (view === 'settings') {
+    await loadMeta();
+    return;
+  }
+
+  if (view === 'docs') {
+    await loadDocs();
+  }
+}
+
+function syncGlobalSearch(view) {
+  const input = byId('global-search');
+  const map = {
+    overview: byId('levels-search').value,
+    inventory: byId('levels-search').value,
+    movements: byId('movements-search').value,
+    admin: byId('users-search').value,
+    trash: byId('trash-search').value,
+    audit: byId('audit-search').value,
+  };
+
+  input.value = map[view] || '';
+}
+
+function applyGlobalSearch() {
+  const value = byId('global-search').value.trim();
+
+  if (state.view === 'overview' || state.view === 'inventory') {
+    byId('levels-search').value = value;
+    loadLevels().catch((error) => toast(error.message, true));
+    return;
+  }
+
+  if (state.view === 'movements') {
+    byId('movements-search').value = value;
+    loadMovements().catch((error) => toast(error.message, true));
+    return;
+  }
+
+  if (state.view === 'admin') {
+    byId('users-search').value = value;
+    loadUsers().catch((error) => toast(error.message, true));
+    return;
+  }
+
+  if (state.view === 'trash') {
+    byId('trash-search').value = value;
+    loadTrash().catch((error) => toast(error.message, true));
+    return;
+  }
+
+  if (state.view === 'audit') {
+    byId('audit-search').value = value;
+    loadAudit().catch((error) => toast(error.message, true));
+  }
+}
+
 function formatNumber(value) {
   const n = Number(value || 0);
-  if (!Number.isFinite(n)) return '0';
+  if (!Number.isFinite(n)) {
+    return '0';
+  }
   return n.toLocaleString(undefined, { maximumFractionDigits: 3 });
 }
 
 function formatDate(value) {
-  if (!value) return '-';
+  if (!value) {
+    return '-';
+  }
+
   const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return value;
+  if (Number.isNaN(date.getTime())) {
+    return value;
+  }
+
   return date.toLocaleString();
 }
 
 function formatSigned(value) {
   const n = Number(value || 0);
   const abs = formatNumber(Math.abs(n));
-  if (n > 0) return `+${abs}`;
-  if (n < 0) return `-${abs}`;
+  if (n > 0) {
+    return `+${abs}`;
+  }
+  if (n < 0) {
+    return `-${abs}`;
+  }
   return '0';
 }
 
@@ -1261,9 +1982,9 @@ function escapeHtml(value) {
 
 function debounce(fn, delay) {
   let timer;
-  return () => {
+  return (...args) => {
     clearTimeout(timer);
-    timer = setTimeout(() => fn(), delay);
+    timer = setTimeout(() => fn(...args), delay);
   };
 }
 

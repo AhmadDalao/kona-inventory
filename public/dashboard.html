@@ -7,13 +7,18 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" referrerpolicy="no-referrer" />
   <link rel="stylesheet" href="/app.css" />
 </head>
 <body>
-  <main class="auth-wrap" id="login-panel">
+  <main class="auth-screen" id="login-panel">
     <section class="auth-card">
-      <h1 id="auth-site-name">Inventory Management System</h1>
-      <p id="auth-site-tagline">Internal stock operations dashboard.</p>
+      <div>
+        <p class="eyebrow">Internal Workspace</p>
+        <h1 id="auth-site-name">Inventory Management System</h1>
+        <p id="auth-site-tagline">Track inventory, movements, controls, and admin actions in one place.</p>
+      </div>
+
       <form id="login-form" class="form-grid">
         <label>
           Email
@@ -23,50 +28,90 @@
           Password
           <input type="password" id="login-password" required autocomplete="current-password" />
         </label>
-        <button class="btn" type="submit">Sign In</button>
+        <button class="btn primary" type="submit">Sign In</button>
       </form>
-      <p class="hint">Use your internal account credentials.</p>
+
+      <p class="hint">Use your company credentials.</p>
     </section>
   </main>
 
   <section id="app-shell" class="app-shell hidden">
-    <aside class="sidebar">
-      <div class="brand">
-        <h2 id="site-name">Inventory</h2>
-        <p id="site-tagline">Operations</p>
+    <aside class="sidebar" id="sidebar">
+      <div class="sidebar-brand">
+        <div class="brand-mark">K</div>
+        <div>
+          <h2 id="site-name">Kona Inventory</h2>
+          <p id="site-tagline">Operations Console</p>
+        </div>
       </div>
 
-      <nav class="nav" id="main-nav">
-        <button class="nav-btn active" data-view="overview">Overview</button>
-        <button class="nav-btn" data-view="inventory">Inventory</button>
-        <button class="nav-btn" data-view="movements">Movements</button>
-        <button class="nav-btn" data-view="catalog">Catalog</button>
-        <button class="nav-btn" data-view="analytics">Analytics</button>
-        <button class="nav-btn" data-view="admin" id="admin-nav-btn">Admin</button>
-        <button class="nav-btn" data-view="docs">API Docs</button>
-      </nav>
+      <div class="sidebar-group">
+        <p class="group-label">Main Menu</p>
+        <nav class="nav" id="main-nav">
+          <button class="nav-btn active" data-view="overview" id="nav-overview"><i class="fa-solid fa-house"></i><span>Overview</span></button>
+          <button class="nav-btn" data-view="inventory" id="nav-inventory"><i class="fa-solid fa-boxes-stacked"></i><span>Inventory</span></button>
+          <button class="nav-btn" data-view="movements" id="nav-movements"><i class="fa-solid fa-arrows-rotate"></i><span>Movements</span></button>
+          <button class="nav-btn" data-view="catalog" id="nav-catalog"><i class="fa-solid fa-table-list"></i><span>Catalog</span></button>
+          <button class="nav-btn" data-view="analytics" id="nav-analytics"><i class="fa-solid fa-chart-line"></i><span>Analytics</span></button>
+        </nav>
+      </div>
+
+      <div class="sidebar-group">
+        <p class="group-label">Control</p>
+        <nav class="nav">
+          <button class="nav-btn" data-view="admin" id="nav-admin"><i class="fa-solid fa-user-shield"></i><span>Admins</span></button>
+          <button class="nav-btn" data-view="trash" id="nav-trash"><i class="fa-solid fa-trash-can"></i><span>Trash</span></button>
+          <button class="nav-btn" data-view="audit" id="nav-audit"><i class="fa-solid fa-fingerprint"></i><span>Audit Log</span></button>
+          <button class="nav-btn" data-view="settings" id="nav-settings"><i class="fa-solid fa-sliders"></i><span>Settings</span></button>
+          <button class="nav-btn" data-view="docs" id="nav-docs"><i class="fa-solid fa-book-open"></i><span>Docs</span></button>
+        </nav>
+      </div>
 
       <div class="sidebar-footer">
-        <p class="mini" id="user-badge">-</p>
-        <button id="logout-btn" class="btn secondary">Logout</button>
+        <div class="user-chip">
+          <i class="fa-solid fa-user"></i>
+          <p id="user-badge">-</p>
+        </div>
+        <button id="logout-btn" class="btn ghost" type="button">Logout</button>
       </div>
     </aside>
 
     <section class="workspace">
       <header class="workspace-head">
-        <div>
-          <h1 id="view-title">Overview</h1>
-          <p id="read-only-badge" class="badge hidden">Read-only mode is ON</p>
+        <div class="head-left">
+          <button id="sidebar-toggle" class="icon-btn" type="button" title="Toggle Sidebar"><i class="fa-solid fa-bars"></i></button>
+          <label class="search-wrap">
+            <i class="fa-solid fa-magnifying-glass"></i>
+            <input id="global-search" placeholder="Search current view" />
+          </label>
         </div>
-        <div class="workspace-meta">
+        <div class="head-right">
+          <button id="head-refresh" class="btn ghost" type="button"><i class="fa-solid fa-rotate-right"></i> Refresh</button>
+          <a class="btn ghost" href="/api-docs" target="_blank" rel="noreferrer"><i class="fa-solid fa-code"></i> API</a>
+          <span class="badge" id="read-only-badge">Read-only mode is ON</span>
           <span class="badge" id="site-open-badge">Site Open</span>
           <span class="badge" id="time-badge"></span>
         </div>
       </header>
 
+      <div class="workspace-title">
+        <div>
+          <h1 id="view-title">Overview</h1>
+          <p id="view-subtitle">Snapshot of stock, risk, and movement activity.</p>
+        </div>
+      </div>
+
       <div class="views">
         <section class="view active" data-view-panel="overview">
-          <div class="kpi-grid" id="summary-grid"></div>
+          <div class="overview-top" id="summary-grid"></div>
+
+          <article class="card">
+            <div class="card-head">
+              <h3>Inventory Health</h3>
+              <span class="hint">In stock vs low vs out</span>
+            </div>
+            <div id="inventory-health"></div>
+          </article>
 
           <div class="grid two">
             <article class="card">
@@ -88,7 +133,7 @@
           </div>
 
           <article class="card">
-            <h3>Movement Trend (Last 14 Days)</h3>
+            <h3>Movement Trend (14 days)</h3>
             <div id="movement-trend-bars" class="trend-bars"></div>
           </article>
         </section>
@@ -96,10 +141,19 @@
         <section class="view" data-view-panel="inventory">
           <article class="card">
             <div class="card-head">
-              <h3>Inventory Levels</h3>
+              <h3>Inventory Table</h3>
               <div class="inline-controls">
-                <input id="levels-search" placeholder="Search item, SKU, category, area" />
+                <label class="input-inline">
+                  <i class="fa-solid fa-magnifying-glass"></i>
+                  <input id="levels-search" placeholder="Search product, SKU, category, area" />
+                </label>
                 <select id="levels-area-filter"></select>
+                <select id="levels-status-filter">
+                  <option value="">All Status</option>
+                  <option value="in">In Stock</option>
+                  <option value="low">Low Stock</option>
+                  <option value="out">Out of Stock</option>
+                </select>
                 <select id="levels-page-size">
                   <option value="10">10</option>
                   <option value="25" selected>25</option>
@@ -114,13 +168,13 @@
               <table>
                 <thead>
                   <tr>
-                    <th data-sort="item_name">Item</th>
-                    <th data-sort="sku">SKU</th>
+                    <th data-sort="item_name">Product</th>
                     <th data-sort="category">Category</th>
-                    <th data-sort="storage_area_name">Area</th>
+                    <th data-sort="sku">SKU</th>
+                    <th data-sort="storage_area_name">Storage</th>
                     <th data-sort="quantity">Qty</th>
                     <th data-sort="total_item_quantity">Total</th>
-                    <th data-sort="reorder_level">Reorder</th>
+                    <th>Status</th>
                     <th>Action</th>
                   </tr>
                 </thead>
@@ -166,7 +220,7 @@
                 <input id="move-note" placeholder="What changed and why" />
               </label>
               <div class="actions">
-                <button class="btn" type="submit">Apply</button>
+                <button class="btn primary" type="submit">Apply</button>
               </div>
             </form>
           </article>
@@ -175,7 +229,10 @@
             <div class="card-head">
               <h3>Movement History</h3>
               <div class="inline-controls">
-                <input id="movements-search" placeholder="Search item, note, reference" />
+                <label class="input-inline">
+                  <i class="fa-solid fa-magnifying-glass"></i>
+                  <input id="movements-search" placeholder="Search item, note, reference" />
+                </label>
                 <select id="movements-type-filter">
                   <option value="">All Types</option>
                   <option value="receive">Receive</option>
@@ -228,11 +285,11 @@
                 <label>Description <input id="area-description" /></label>
                 <label class="inline-check"><input type="checkbox" id="area-active" checked /> Active</label>
                 <div class="actions">
-                  <button class="btn" type="submit">Save</button>
+                  <button class="btn primary" type="submit">Save</button>
                   <button class="btn ghost" type="button" id="area-reset">Reset</button>
                 </div>
               </form>
-              <div class="table-wrap">
+              <div class="table-wrap tall">
                 <table>
                   <thead>
                     <tr><th>Code</th><th>Name</th><th>Status</th><th>Actions</th></tr>
@@ -254,7 +311,7 @@
                 <label>Notes <input id="item-notes" /></label>
                 <label class="inline-check"><input type="checkbox" id="item-active" checked /> Active</label>
                 <div class="actions">
-                  <button class="btn" type="submit">Save</button>
+                  <button class="btn primary" type="submit">Save</button>
                   <button class="btn ghost" type="button" id="item-reset">Reset</button>
                 </div>
               </form>
@@ -274,7 +331,7 @@
           <div class="grid two">
             <article class="card">
               <h3>Top Moved Items</h3>
-              <div class="table-wrap">
+              <div class="table-wrap compact">
                 <table>
                   <thead>
                     <tr><th>Item</th><th>SKU</th><th>Moves</th><th>Total Moved</th></tr>
@@ -292,7 +349,7 @@
 
           <article class="card">
             <h3>Storage Utilization</h3>
-            <div class="table-wrap">
+            <div class="table-wrap compact">
               <table>
                 <thead>
                   <tr><th>Storage Area</th><th>Total Qty</th><th>Active Slots</th></tr>
@@ -305,25 +362,29 @@
 
         <section class="view" data-view-panel="admin">
           <div class="grid two">
-            <article class="card">
-              <h3>System Settings</h3>
-              <form id="settings-form" class="form-grid">
-                <label>Site Name <input id="set-site-name" required /></label>
-                <label>Tagline <input id="set-site-tagline" /></label>
-                <label>Default Currency <input id="set-default-currency" maxlength="5" /></label>
-                <label>Low Stock Limit <input id="set-low-stock-limit" type="number" min="1" max="200" /></label>
-                <label>Table Page Size <input id="set-table-page-size" type="number" min="10" max="100" /></label>
-                <label class="inline-check"><input type="checkbox" id="set-site-open" /> Site Open</label>
-                <label class="inline-check"><input type="checkbox" id="set-read-only" /> Read-only Mode</label>
-                <label class="inline-check"><input type="checkbox" id="set-allow-negative" /> Allow Negative Stock</label>
-                <div class="actions">
-                  <button class="btn" type="submit">Save Settings</button>
-                </div>
-              </form>
-            </article>
-
             <article class="card" id="admin-users-card">
-              <h3>Admin Users</h3>
+              <div class="card-head">
+                <h3>Admin Users</h3>
+                <div class="inline-controls">
+                  <label class="input-inline">
+                    <i class="fa-solid fa-magnifying-glass"></i>
+                    <input id="users-search" placeholder="Search name or email" />
+                  </label>
+                  <select id="users-role-filter">
+                    <option value="">All Roles</option>
+                    <option value="owner">Owner</option>
+                    <option value="manager">Manager</option>
+                    <option value="viewer">Viewer</option>
+                  </select>
+                  <select id="users-limit">
+                    <option value="50">50</option>
+                    <option value="100" selected>100</option>
+                    <option value="200">200</option>
+                  </select>
+                  <button class="btn ghost" type="button" id="users-refresh">Refresh</button>
+                </div>
+              </div>
+
               <form id="user-form" class="form-grid compact">
                 <input type="hidden" id="user-id" />
                 <label>Name <input id="user-name" required /></label>
@@ -338,20 +399,134 @@
                 </label>
                 <label class="inline-check"><input type="checkbox" id="user-active" checked /> Active</label>
                 <div class="actions">
-                  <button class="btn" type="submit">Save User</button>
+                  <button class="btn primary" type="submit">Save User</button>
                   <button class="btn ghost" type="button" id="user-reset">Reset</button>
                 </div>
               </form>
+
               <div class="table-wrap tall">
                 <table>
                   <thead>
-                    <tr><th>Name</th><th>Email</th><th>Role</th><th>Status</th><th>Actions</th></tr>
+                    <tr><th>Name</th><th>Email</th><th>Role</th><th>Status</th><th>Created</th><th>Actions</th></tr>
                   </thead>
                   <tbody id="users-table"></tbody>
                 </table>
               </div>
+              <div class="pager" id="users-pager"></div>
+            </article>
+
+            <article class="card">
+              <h3>Admin Notes</h3>
+              <ul class="plain-list">
+                <li>Owner has full control including settings and audit trail.</li>
+                <li>Manager can run inventory operations, but cannot see owner audit log.</li>
+                <li>Viewer is read-only and cannot edit inventory records.</li>
+                <li>All write actions are logged with actor, action, timestamp, and IP.</li>
+              </ul>
             </article>
           </div>
+        </section>
+
+        <section class="view" data-view-panel="trash">
+          <article class="card">
+            <div class="card-head">
+              <h3>Trash & Restore</h3>
+              <div class="inline-controls">
+                <label class="input-inline">
+                  <i class="fa-solid fa-magnifying-glass"></i>
+                  <input id="trash-search" placeholder="Search deleted records" />
+                </label>
+                <button class="btn ghost" id="trash-refresh" type="button">Refresh</button>
+              </div>
+            </div>
+            <p class="hint">Deleted records stay here until restored. Restoring reactivates the item/storage area.</p>
+          </article>
+
+          <div class="grid two">
+            <article class="card">
+              <h3>Deleted Items</h3>
+              <div class="table-wrap tall">
+                <table>
+                  <thead>
+                    <tr><th>Name</th><th>SKU</th><th>Category</th><th>Deleted By</th><th>Deleted At</th><th>Action</th></tr>
+                  </thead>
+                  <tbody id="trash-items-table"></tbody>
+                </table>
+              </div>
+            </article>
+
+            <article class="card">
+              <h3>Deleted Storage Areas</h3>
+              <div class="table-wrap tall">
+                <table>
+                  <thead>
+                    <tr><th>Code</th><th>Name</th><th>Deleted By</th><th>Deleted At</th><th>Action</th></tr>
+                  </thead>
+                  <tbody id="trash-areas-table"></tbody>
+                </table>
+              </div>
+            </article>
+          </div>
+        </section>
+
+        <section class="view" data-view-panel="audit">
+          <article class="card">
+            <div class="card-head">
+              <h3>Owner Audit Log</h3>
+              <div class="inline-controls">
+                <label class="input-inline">
+                  <i class="fa-solid fa-magnifying-glass"></i>
+                  <input id="audit-search" placeholder="Search actor, action, summary" />
+                </label>
+                <select id="audit-entity-filter">
+                  <option value="">All Entities</option>
+                  <option value="item">Item</option>
+                  <option value="storage_area">Storage Area</option>
+                  <option value="stock_movement">Movement</option>
+                  <option value="user">User</option>
+                  <option value="settings">Settings</option>
+                  <option value="trash">Trash</option>
+                </select>
+                <input id="audit-date-from" type="date" />
+                <input id="audit-date-to" type="date" />
+                <select id="audit-limit">
+                  <option value="50">50</option>
+                  <option value="100" selected>100</option>
+                  <option value="200">200</option>
+                </select>
+                <button class="btn ghost" id="audit-refresh" type="button">Refresh</button>
+              </div>
+            </div>
+
+            <div class="table-wrap tall">
+              <table>
+                <thead>
+                  <tr><th>Time</th><th>User</th><th>Role</th><th>Action</th><th>Entity</th><th>Status</th><th>Summary</th><th>Meta</th></tr>
+                </thead>
+                <tbody id="audit-table"></tbody>
+              </table>
+            </div>
+            <div class="pager" id="audit-pager"></div>
+          </article>
+        </section>
+
+        <section class="view" data-view-panel="settings">
+          <article class="card">
+            <h3>System Settings</h3>
+            <form id="settings-form" class="form-grid settings-grid">
+              <label>Site Name <input id="set-site-name" required /></label>
+              <label>Tagline <input id="set-site-tagline" /></label>
+              <label>Default Currency <input id="set-default-currency" maxlength="5" /></label>
+              <label>Low Stock Limit <input id="set-low-stock-limit" type="number" min="1" max="200" /></label>
+              <label>Table Page Size <input id="set-table-page-size" type="number" min="10" max="100" /></label>
+              <label class="inline-check"><input type="checkbox" id="set-site-open" /> Site Open</label>
+              <label class="inline-check"><input type="checkbox" id="set-read-only" /> Read-only Mode</label>
+              <label class="inline-check"><input type="checkbox" id="set-allow-negative" /> Allow Negative Stock</label>
+              <div class="actions">
+                <button class="btn primary" type="submit">Save Settings</button>
+              </div>
+            </form>
+          </article>
         </section>
 
         <section class="view" data-view-panel="docs">

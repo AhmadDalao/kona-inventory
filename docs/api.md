@@ -37,7 +37,7 @@ Patch body keys:
 
 ## Admin Users (Owner)
 
-- `GET /api/admin/users`
+- `GET /api/admin/users?search=&role=&limit=`
 - `POST /api/admin/users`
 - `PATCH /api/admin/users/{id}`
 
@@ -48,17 +48,37 @@ User roles:
 
 ## Storage Areas
 
-- `GET /api/storage-areas`
+- `GET /api/storage-areas?include_inactive=1&include_deleted=1`
 - `POST /api/storage-areas`
 - `PATCH /api/storage-areas/{id}`
 - `DELETE /api/storage-areas/{id}`
 
 ## Items
 
-- `GET /api/items`
+- `GET /api/items?include_inactive=1&include_deleted=1`
 - `POST /api/items`
 - `PATCH /api/items/{id}`
 - `DELETE /api/items/{id}`
+
+## Trash
+
+- `GET /api/trash?search=&limit=`
+- `POST /api/trash/{entity}/{id}/restore`
+
+Supported restore entities:
+- `items`
+- `storage_areas`
+
+## Audit Log (Owner)
+
+- `GET /api/audit-logs?search=&entity_type=&action=&date_from=&date_to=&limit=`
+
+Audit record fields include:
+- actor name/email/role
+- action and entity
+- HTTP status code
+- metadata (sanitized request params/body)
+- timestamp, IP, user-agent
 
 ## Inventory
 

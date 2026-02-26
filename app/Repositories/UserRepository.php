@@ -57,9 +57,25 @@ class UserRepository
         return is_array($row) ? $row : null;
     }
 
-    public function listUsers(): array
+    public function listUsers(string $search = '', ?string $role = null, int $limit = 200): array
     {
-        $stmt = Db::conn()->query(
+        $safeLimit = max(1, min($limit, 500));
+        $conditions = [];
+        $params = [];
+
+        if (trim($search) !== '') {
+            $conditions[] = '(name LIKE :search OR email LIKE :search)';
+            $params[':search'] = '%' . trim($search) . '%';
+        }
+
+        if ($role !== null && $role !== '') {
+            $conditions[] = 'CASE WHEN lower(role) IN ("admin", "superadmin") THEN "owner" ELSE lower(role) END = :role';
+            $params[':role'] = strtolower($role);
+        }
+
+        $where = $conditions !== [] ? ('WHERE ' . implode(' AND ', $conditions)) : '';
+
+        $stmt = Db::conn()->prepare(
             'SELECT
                 id,
                 name,
@@ -72,8 +88,16 @@ class UserRepository
                 created_at,
                 updated_at
              FROM users
-             ORDER BY is_active DESC, role ASC, name ASC'
+             ' . $where . '
+             ORDER BY is_active DESC, role ASC, name ASC
+             LIMIT :limit'
         );
+
+        foreach ($params as $key => $value) {
+            $stmt->bindValue($key, $value);
+        }
+        $stmt->bindValue(':limit', $safeLimit, \PDO::PARAM_INT);
+        $stmt->execute();
 
         return $stmt->fetchAll() ?: [];
     }

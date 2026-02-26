@@ -55,7 +55,7 @@ class InventoryRepository
 
     public function matrix(?string $search = null, ?int $storageAreaId = null, bool $includeInactive = false): array
     {
-        $conditions = [];
+        $conditions = ['i.deleted_at IS NULL', 'sa.deleted_at IS NULL'];
         $params = [];
 
         if (!$includeInactive) {

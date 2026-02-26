@@ -8,13 +8,23 @@ use App\Db;
 
 class StorageAreaRepository
 {
-    public function all(bool $includeInactive = false): array
+    public function all(bool $includeInactive = false, bool $includeDeleted = false): array
     {
-        $sql = 'SELECT id, code, name, description, is_active, created_at, updated_at
-                FROM storage_areas';
+        $conditions = [];
 
         if (!$includeInactive) {
-            $sql .= ' WHERE is_active = 1';
+            $conditions[] = 'is_active = 1';
+        }
+
+        if (!$includeDeleted) {
+            $conditions[] = 'deleted_at IS NULL';
+        }
+
+        $sql = 'SELECT id, code, name, description, is_active, deleted_at, deleted_by, created_at, updated_at
+                FROM storage_areas';
+
+        if ($conditions !== []) {
+            $sql .= ' WHERE ' . implode(' AND ', $conditions);
         }
 
         $sql .= ' ORDER BY name ASC';
@@ -22,14 +32,19 @@ class StorageAreaRepository
         return Db::conn()->query($sql)->fetchAll() ?: [];
     }
 
-    public function find(int $id): ?array
+    public function find(int $id, bool $includeDeleted = false): ?array
     {
-        $stmt = Db::conn()->prepare(
-            'SELECT id, code, name, description, is_active, created_at, updated_at
-             FROM storage_areas
-             WHERE id = :id
-             LIMIT 1'
-        );
+        $sql = 'SELECT id, code, name, description, is_active, deleted_at, deleted_by, created_at, updated_at
+                FROM storage_areas
+                WHERE id = :id';
+
+        if (!$includeDeleted) {
+            $sql .= ' AND deleted_at IS NULL';
+        }
+
+        $sql .= ' LIMIT 1';
+
+        $stmt = Db::conn()->prepare($sql);
         $stmt->execute([':id' => $id]);
         $row = $stmt->fetch();
 
@@ -40,8 +55,8 @@ class StorageAreaRepository
     {
         $now = gmdate('c');
         $stmt = Db::conn()->prepare(
-            'INSERT INTO storage_areas (code, name, description, is_active, created_at, updated_at)
-             VALUES (:code, :name, :description, :is_active, :created_at, :updated_at)'
+            'INSERT INTO storage_areas (code, name, description, is_active, deleted_at, deleted_by, created_at, updated_at)
+             VALUES (:code, :name, :description, :is_active, NULL, NULL, :created_at, :updated_at)'
         );
 
         $stmt->execute([
@@ -53,13 +68,13 @@ class StorageAreaRepository
             ':updated_at' => $now,
         ]);
 
-        return $this->find((int)Db::conn()->lastInsertId()) ?? [];
+        return $this->find((int)Db::conn()->lastInsertId(), true) ?? [];
     }
 
     public function update(int $id, array $data): ?array
     {
-        $existing = $this->find($id);
-        if (!$existing) {
+        $existing = $this->find($id, true);
+        if (!$existing || $existing['deleted_at'] !== null) {
             return null;
         }
 
@@ -82,12 +97,28 @@ class StorageAreaRepository
             ':updated_at' => gmdate('c'),
         ]);
 
-        return $this->find($id);
+        return $this->find($id, true);
     }
 
-    public function delete(int $id): bool
+    public function softDelete(int $id, int $deletedBy): bool
     {
-        $stmt = Db::conn()->prepare('DELETE FROM storage_areas WHERE id = :id');
-        return $stmt->execute([':id' => $id]);
+        $stmt = Db::conn()->prepare(
+            'UPDATE storage_areas
+             SET deleted_at = :deleted_at,
+                 deleted_by = :deleted_by,
+                 is_active = 0,
+                 updated_at = :updated_at
+             WHERE id = :id
+               AND deleted_at IS NULL'
+        );
+
+        $stmt->execute([
+            ':id' => $id,
+            ':deleted_at' => gmdate('c'),
+            ':deleted_by' => $deletedBy,
+            ':updated_at' => gmdate('c'),
+        ]);
+
+        return $stmt->rowCount() > 0;
     }
 }

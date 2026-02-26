@@ -11,6 +11,9 @@ Modern internal inventory platform with module-based dashboard, analytics, and a
   - Catalog
   - Analytics
   - Admin
+  - Trash
+  - Audit Log
+  - Settings
   - API Docs
 - Multi-storage area inventory tracking.
 - Item catalog with SKU/category/unit/reorder level.
@@ -23,6 +26,8 @@ Modern internal inventory platform with module-based dashboard, analytics, and a
   - `viewer`
 - Admin controls:
   - User management (owner)
+  - Trash restore for deleted items/storage areas
+  - Owner audit log for all write actions
   - Site settings
   - Read-only mode
   - Negative stock policy toggle
@@ -60,6 +65,20 @@ php -S 127.0.0.1:8000 -t .
 
 ```bash
 ./scripts/regulation_check.sh
+```
+
+## Seed Dummy Data
+
+Generate 60 demo items plus random levels/movements:
+
+```bash
+php scripts/seed_dummy_data.php --count=60
+```
+
+If dummy SKUs already exist, append more with:
+
+```bash
+php scripts/seed_dummy_data.php --count=20 --append
 ```
 
 ## Documentation

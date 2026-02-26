@@ -19,7 +19,16 @@ class AdminUserController
 
     public function index(Request $request): array
     {
-        return ['body' => ['data' => $this->users->listUsers()], 'status' => 200];
+        $search = trim((string)$request->query('search', ''));
+        $role = trim((string)$request->query('role', ''));
+        $limit = (int)$request->query('limit', 250);
+
+        return [
+            'body' => [
+                'data' => $this->users->listUsers($search, $role !== '' ? $role : null, $limit),
+            ],
+            'status' => 200,
+        ];
     }
 
     public function store(Request $request): array
