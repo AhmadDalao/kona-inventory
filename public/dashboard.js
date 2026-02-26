@@ -1216,8 +1216,8 @@ function renderAreas() {
       <td><span class="status-pill ${active ? 'in' : 'out'}">${active ? 'Active' : 'Inactive'}</span></td>
       <td>
         <div class="actions">
-          <button class="btn ghost" data-area-edit="${area.id}" ${canWrite() ? '' : 'disabled'}>Edit</button>
-          <button class="btn danger" data-area-del="${area.id}" ${canWrite() ? '' : 'disabled'}>Trash</button>
+          <button class="btn ghost table-btn" data-area-edit="${area.id}" ${canWrite() ? '' : 'disabled'}>Edit</button>
+          <button class="btn danger table-btn" data-area-del="${area.id}" ${canWrite() ? '' : 'disabled'}>Trash</button>
         </div>
       </td>
     `;
@@ -1298,8 +1298,8 @@ function renderItems() {
       <td><span class="status-pill ${active ? 'in' : 'out'}">${active ? 'Active' : 'Inactive'}</span></td>
       <td>
         <div class="actions">
-          <button class="btn ghost" data-item-edit="${item.id}" ${canWrite() ? '' : 'disabled'}>Edit</button>
-          <button class="btn danger" data-item-del="${item.id}" ${canWrite() ? '' : 'disabled'}>Trash</button>
+          <button class="btn ghost table-btn" data-item-edit="${item.id}" ${canWrite() ? '' : 'disabled'}>Edit</button>
+          <button class="btn danger table-btn" data-item-del="${item.id}" ${canWrite() ? '' : 'disabled'}>Trash</button>
         </div>
       </td>
     `;
@@ -1417,7 +1417,7 @@ function renderLevels() {
       <td>${formatNumber(row.quantity)}</td>
       <td class="${status.key === 'low' ? 'low' : ''}">${formatNumber(row.total_item_quantity)}</td>
       <td><span class="status-pill ${status.key}">${status.label}</span></td>
-      <td><button class="btn ghost" data-set-level="${row.item_id}:${row.storage_area_id}:${row.quantity}" ${canWrite() ? '' : 'disabled'}>Set</button></td>
+      <td><button class="btn ghost table-btn" data-set-level="${row.item_id}:${row.storage_area_id}:${row.quantity}" ${canWrite() ? '' : 'disabled'}>Set</button></td>
     `;
     tbody.appendChild(tr);
   }
@@ -1546,8 +1546,8 @@ function renderUsers() {
       <td>${escapeHtml(formatDate(user.created_at))}</td>
       <td>
         <div class="actions">
-          <button class="btn ghost" data-user-edit="${user.id}" ${canWrite() ? '' : 'disabled'}>Edit</button>
-          <button class="btn ghost" data-user-toggle="${user.id}" ${canWrite() ? '' : 'disabled'}>${active ? 'Disable' : 'Enable'}</button>
+          <button class="btn ghost table-btn" data-user-edit="${user.id}" ${canWrite() ? '' : 'disabled'}>Edit</button>
+          <button class="btn ghost table-btn" data-user-toggle="${user.id}" ${canWrite() ? '' : 'disabled'}>${active ? 'Disable' : 'Enable'}</button>
         </div>
       </td>
     `;
@@ -1629,7 +1629,7 @@ function renderTrash() {
         <td>${escapeHtml(row.category || '-')}</td>
         <td>${escapeHtml(row.deleted_by_name || row.deleted_by_email || '-')}</td>
         <td>${escapeHtml(formatDate(row.deleted_at))}</td>
-        <td><button class="btn ghost" data-restore-item="${row.id}" ${canWrite() ? '' : 'disabled'}>Restore</button></td>
+        <td><button class="btn ghost table-btn" data-restore-item="${row.id}" ${canWrite() ? '' : 'disabled'}>Restore</button></td>
       `;
       itemsBody.appendChild(tr);
     }
@@ -1645,7 +1645,7 @@ function renderTrash() {
         <td>${escapeHtml(row.name)}</td>
         <td>${escapeHtml(row.deleted_by_name || row.deleted_by_email || '-')}</td>
         <td>${escapeHtml(formatDate(row.deleted_at))}</td>
-        <td><button class="btn ghost" data-restore-area="${row.id}" ${canWrite() ? '' : 'disabled'}>Restore</button></td>
+        <td><button class="btn ghost table-btn" data-restore-area="${row.id}" ${canWrite() ? '' : 'disabled'}>Restore</button></td>
       `;
       areasBody.appendChild(tr);
     }

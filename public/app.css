@@ -437,6 +437,98 @@ body.sidebar-collapsed .nav-btn {
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
+.catalog-grid {
+  align-items: start;
+}
+
+.entity-card {
+  padding: 0;
+  gap: 0;
+  overflow: hidden;
+  position: relative;
+}
+
+.entity-card::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 3px;
+  background: linear-gradient(90deg, var(--primary), var(--icon-accent));
+}
+
+.entity-head {
+  padding: 16px 18px 10px;
+  border-bottom: 1px solid var(--line-2);
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+.entity-head h3 {
+  font-size: 20px;
+  letter-spacing: -0.2px;
+}
+
+.catalog-form {
+  margin: 12px 18px 8px;
+  padding: 12px;
+  border: 1px solid var(--line-2);
+  border-radius: 14px;
+  background: var(--panel-soft);
+}
+
+.catalog-form label {
+  font-size: 11px;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.catalog-form .inline-check {
+  margin-top: 8px;
+  font-size: 13px;
+  text-transform: none;
+  letter-spacing: 0;
+  color: var(--ink);
+}
+
+.catalog-form input,
+.catalog-form select {
+  border-color: var(--line);
+  background: var(--panel);
+}
+
+.catalog-actions {
+  grid-column: 1 / -1;
+  padding-top: 2px;
+}
+
+.table-headline {
+  padding: 8px 18px 0;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+}
+
+.catalog-table-wrap {
+  margin: 10px 18px 18px;
+}
+
+.catalog-table td,
+.catalog-table th {
+  padding: 11px 10px;
+}
+
+.catalog-table tbody tr {
+  transition: background-color 0.16s ease;
+}
+
+.catalog-table tbody tr:hover {
+  background: rgba(91, 61, 245, 0.07);
+}
+
 .inline-controls {
   display: flex;
   flex-wrap: wrap;
@@ -554,6 +646,21 @@ select:focus {
 .btn.danger {
   color: #fff;
   background: linear-gradient(140deg, #d92d20, #b42318);
+}
+
+.table-btn {
+  border-radius: 999px;
+  padding: 6px 12px;
+  font-size: 12px;
+}
+
+.btn.ghost.table-btn {
+  background: #eaf0f9;
+  border-color: #d4deee;
+}
+
+.btn.ghost.table-btn:hover {
+  background: #dde8f7;
 }
 
 .actions {

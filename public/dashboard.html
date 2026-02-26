@@ -275,22 +275,32 @@
         </section>
 
         <section class="view" data-view-panel="catalog">
-          <div class="grid two">
-            <article class="card">
-              <h3>Storage Areas</h3>
-              <form id="area-form" class="form-grid compact">
+          <div class="grid two catalog-grid">
+            <article class="card entity-card">
+              <div class="entity-head">
+                <div>
+                  <h3>Storage Areas</h3>
+                  <p class="hint">Define active warehouse zones and staging areas.</p>
+                </div>
+                <span class="badge">Zones</span>
+              </div>
+              <form id="area-form" class="form-grid compact catalog-form">
                 <input type="hidden" id="area-id" />
                 <label>Code <input id="area-code" maxlength="20" required /></label>
                 <label>Name <input id="area-name" required /></label>
                 <label>Description <input id="area-description" /></label>
                 <label class="inline-check"><input type="checkbox" id="area-active" checked /> Active</label>
-                <div class="actions">
-                  <button class="btn primary" type="submit">Save</button>
-                  <button class="btn ghost" type="button" id="area-reset">Reset</button>
+                <div class="actions catalog-actions">
+                  <button class="btn primary" type="submit"><i class="fa-solid fa-floppy-disk"></i> Save Area</button>
+                  <button class="btn ghost" type="button" id="area-reset"><i class="fa-solid fa-rotate-left"></i> Reset</button>
                 </div>
               </form>
-              <div class="table-wrap tall">
-                <table>
+              <div class="table-headline">
+                <strong>Area Directory</strong>
+                <span class="hint">Edit, disable, or move records to trash.</span>
+              </div>
+              <div class="table-wrap tall catalog-table-wrap">
+                <table class="catalog-table">
                   <thead>
                     <tr><th>Code</th><th>Name</th><th>Status</th><th>Actions</th></tr>
                   </thead>
@@ -299,9 +309,15 @@
               </div>
             </article>
 
-            <article class="card">
-              <h3>Items</h3>
-              <form id="item-form" class="form-grid compact">
+            <article class="card entity-card">
+              <div class="entity-head">
+                <div>
+                  <h3>Items</h3>
+                  <p class="hint">Manage product SKUs, categories, and reorder points.</p>
+                </div>
+                <span class="badge">SKUs</span>
+              </div>
+              <form id="item-form" class="form-grid compact catalog-form">
                 <input type="hidden" id="item-id" />
                 <label>SKU <input id="item-sku" maxlength="30" required /></label>
                 <label>Name <input id="item-name" required /></label>
@@ -310,13 +326,17 @@
                 <label>Reorder Level <input id="item-reorder" type="number" min="0" step="0.001" value="0" /></label>
                 <label>Notes <input id="item-notes" /></label>
                 <label class="inline-check"><input type="checkbox" id="item-active" checked /> Active</label>
-                <div class="actions">
-                  <button class="btn primary" type="submit">Save</button>
-                  <button class="btn ghost" type="button" id="item-reset">Reset</button>
+                <div class="actions catalog-actions">
+                  <button class="btn primary" type="submit"><i class="fa-solid fa-floppy-disk"></i> Save Item</button>
+                  <button class="btn ghost" type="button" id="item-reset"><i class="fa-solid fa-rotate-left"></i> Reset</button>
                 </div>
               </form>
-              <div class="table-wrap tall">
-                <table>
+              <div class="table-headline">
+                <strong>Item Directory</strong>
+                <span class="hint">Use edit for quick updates, trash to archive.</span>
+              </div>
+              <div class="table-wrap tall catalog-table-wrap">
+                <table class="catalog-table">
                   <thead>
                     <tr><th>SKU</th><th>Name</th><th>Category</th><th>Reorder</th><th>Status</th><th>Actions</th></tr>
                   </thead>
