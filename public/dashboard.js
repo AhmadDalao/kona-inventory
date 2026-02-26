@@ -27,6 +27,12 @@ const state = {
   },
 };
 
+const modalState = {
+  resolver: null,
+  mode: 'confirm',
+  validator: null,
+};
+
 const viewMeta = {
   overview: {
     title: 'Overview',
@@ -153,6 +159,178 @@ function toast(message, isError = false) {
 
   clearTimeout(el._timer);
   el._timer = setTimeout(() => el.classList.add('hidden'), 3200);
+}
+
+function initModal() {
+  const root = byId('app-modal');
+  const close = byId('app-modal-close');
+  const cancel = byId('app-modal-cancel');
+  const confirm = byId('app-modal-confirm');
+  const input = byId('app-modal-input');
+
+  if (!root || !close || !cancel || !confirm || !input) {
+    return;
+  }
+
+  close.addEventListener('click', () => closeModal(false));
+  cancel.addEventListener('click', () => closeModal(modalState.mode === 'input' ? null : false));
+  confirm.addEventListener('click', () => submitModal());
+  root.addEventListener('click', (event) => {
+    if (event.target === root) {
+      closeModal(modalState.mode === 'input' ? null : false);
+    }
+  });
+
+  input.addEventListener('keydown', (event) => {
+    if (event.key === 'Enter') {
+      event.preventDefault();
+      submitModal();
+    }
+  });
+
+  document.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape' && !root.classList.contains('hidden')) {
+      closeModal(modalState.mode === 'input' ? null : false);
+    }
+  });
+}
+
+function openConfirmModal({ title, message, confirmLabel = 'Confirm', danger = true }) {
+  const root = byId('app-modal');
+  const titleEl = byId('app-modal-title');
+  const messageEl = byId('app-modal-message');
+  const inputWrap = byId('app-modal-input-wrap');
+  const errorEl = byId('app-modal-error');
+  const confirm = byId('app-modal-confirm');
+
+  if (!root || !titleEl || !messageEl || !inputWrap || !errorEl || !confirm) {
+    return Promise.resolve(window.confirm(message || title || 'Are you sure?'));
+  }
+
+  modalState.mode = 'confirm';
+  modalState.validator = null;
+
+  titleEl.textContent = title || 'Confirm Action';
+  messageEl.textContent = message || '';
+  inputWrap.classList.add('hidden');
+  errorEl.textContent = '';
+  errorEl.classList.add('hidden');
+  confirm.textContent = confirmLabel;
+  confirm.classList.remove('primary', 'danger');
+  confirm.classList.add(danger ? 'danger' : 'primary');
+
+  root.classList.remove('hidden');
+  document.body.classList.add('modal-open');
+
+  return new Promise((resolve) => {
+    modalState.resolver = resolve;
+  });
+}
+
+function openInputModal({
+  title,
+  message,
+  label = 'Value',
+  inputType = 'text',
+  initialValue = '',
+  confirmLabel = 'Save',
+  validator = null,
+}) {
+  const root = byId('app-modal');
+  const titleEl = byId('app-modal-title');
+  const messageEl = byId('app-modal-message');
+  const inputWrap = byId('app-modal-input-wrap');
+  const inputLabel = byId('app-modal-input-label');
+  const input = byId('app-modal-input');
+  const errorEl = byId('app-modal-error');
+  const confirm = byId('app-modal-confirm');
+
+  if (!root || !titleEl || !messageEl || !inputWrap || !inputLabel || !input || !errorEl || !confirm) {
+    return Promise.resolve(window.prompt(message || title || label, String(initialValue)));
+  }
+
+  modalState.mode = 'input';
+  modalState.validator = validator;
+
+  titleEl.textContent = title || 'Input Required';
+  messageEl.textContent = message || '';
+  inputLabel.textContent = label;
+  input.type = inputType;
+  input.value = String(initialValue ?? '');
+  inputWrap.classList.remove('hidden');
+  errorEl.textContent = '';
+  errorEl.classList.add('hidden');
+  confirm.textContent = confirmLabel;
+  confirm.classList.remove('danger');
+  confirm.classList.add('primary');
+
+  root.classList.remove('hidden');
+  document.body.classList.add('modal-open');
+  setTimeout(() => {
+    input.focus();
+    input.select();
+  }, 0);
+
+  return new Promise((resolve) => {
+    modalState.resolver = resolve;
+  });
+}
+
+function submitModal() {
+  const errorEl = byId('app-modal-error');
+  const input = byId('app-modal-input');
+
+  if (modalState.mode === 'confirm') {
+    closeModal(true);
+    return;
+  }
+
+  const value = input ? input.value : '';
+  const validation = typeof modalState.validator === 'function'
+    ? modalState.validator(value)
+    : null;
+
+  if (validation) {
+    if (errorEl) {
+      errorEl.textContent = validation;
+      errorEl.classList.remove('hidden');
+    }
+    return;
+  }
+
+  closeModal(value);
+}
+
+function closeModal(result) {
+  const root = byId('app-modal');
+  const errorEl = byId('app-modal-error');
+  const inputWrap = byId('app-modal-input-wrap');
+  const input = byId('app-modal-input');
+
+  if (root) {
+    root.classList.add('hidden');
+  }
+  document.body.classList.remove('modal-open');
+  if (errorEl) {
+    errorEl.textContent = '';
+    errorEl.classList.add('hidden');
+  }
+  if (inputWrap) {
+    inputWrap.classList.add('hidden');
+  }
+  if (input) {
+    input.value = '';
+    input.type = 'text';
+  }
+
+  const resolver = modalState.resolver;
+  modalState.resolver = null;
+  modalState.mode = 'confirm';
+  modalState.validator = null;
+
+  if (typeof resolver === 'function') {
+    resolver(result);
+  }
 }
 
 function showAuth(isLoggedIn) {
@@ -423,6 +601,7 @@ function wireEvents() {
 }
 
 async function boot() {
+  initModal();
   wireEvents();
   updateClock();
   setInterval(updateClock, 1000);
@@ -1069,7 +1248,13 @@ function renderAreas() {
       }
 
       const areaId = Number(button.dataset.areaDel);
-      if (!confirm('Move this storage area to trash?')) {
+      const confirmed = await openConfirmModal({
+        title: 'Move Storage Area To Trash?',
+        message: 'This hides the storage area from active operations. You can restore it later from Trash.',
+        confirmLabel: 'Move To Trash',
+        danger: true,
+      });
+      if (!confirmed) {
         return;
       }
 
@@ -1148,7 +1333,13 @@ function renderItems() {
       }
 
       const itemId = Number(button.dataset.itemDel);
-      if (!confirm('Move this item to trash?')) {
+      const confirmed = await openConfirmModal({
+        title: 'Move Item To Trash?',
+        message: 'This removes the item from active inventory screens. You can restore it from Trash.',
+        confirmLabel: 'Move To Trash',
+        danger: true,
+      });
+      if (!confirmed) {
         return;
       }
 
@@ -1238,7 +1429,21 @@ function renderLevels() {
       }
 
       const [itemId, areaId, current] = button.dataset.setLevel.split(':');
-      const answer = prompt(`Set absolute quantity (current ${current})`, current);
+      const answer = await openInputModal({
+        title: 'Set Absolute Quantity',
+        message: `Current quantity: ${current}`,
+        label: 'Target quantity',
+        inputType: 'number',
+        initialValue: current,
+        confirmLabel: 'Set Quantity',
+        validator: (raw) => {
+          const value = Number(raw);
+          if (!Number.isFinite(value) || value < 0) {
+            return 'Quantity must be 0 or greater.';
+          }
+          return null;
+        },
+      });
       if (answer === null) {
         return;
       }
@@ -1461,7 +1666,13 @@ async function restoreFromTrash(entity, id) {
   }
 
   const label = entity === 'items' ? 'item' : 'storage area';
-  if (!confirm(`Restore this ${label}?`)) {
+  const confirmed = await openConfirmModal({
+    title: `Restore ${label === 'item' ? 'Item' : 'Storage Area'}?`,
+    message: `This will move the ${label} back into active records.`,
+    confirmLabel: 'Restore',
+    danger: false,
+  });
+  if (!confirmed) {
     return;
   }
 
