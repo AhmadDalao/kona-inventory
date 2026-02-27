@@ -30,6 +30,11 @@ if ($request->method() === 'OPTIONS') {
     exit;
 }
 
+if ($path === '/favicon.ico') {
+    http_response_code(204);
+    exit;
+}
+
 if (!str_starts_with($path, '/api/')) {
     $publicRoot = __DIR__;
 

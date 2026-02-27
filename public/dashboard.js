@@ -3222,6 +3222,7 @@ function renderUsers() {
       <td>
         <div class="actions">
           <button class="btn ghost table-btn action-edit" data-user-edit="${user.id}" ${canWrite() ? '' : 'disabled'}>Manage</button>
+          <button class="btn ghost table-btn action-set" data-user-password="${user.id}" ${canWrite() ? '' : 'disabled'}>Password</button>
           <button class="btn ghost table-btn action-toggle" data-user-toggle="${user.id}" ${canWrite() ? '' : 'disabled'}>${active ? 'Disable' : 'Enable'}</button>
         </div>
       </td>
@@ -3242,6 +3243,19 @@ function renderUsers() {
     });
   });
 
+  tbody.querySelectorAll('[data-user-password]').forEach((button) => {
+    button.addEventListener('click', () => {
+      if (!canManageAdmin() || !canWrite()) {
+        return;
+      }
+      const user = state.users.find((row) => Number(row.id) === Number(button.dataset.userPassword));
+      if (!user) {
+        return;
+      }
+      openUserPasswordReset(user).catch((error) => toast(error.message, true));
+    });
+  });
+
   tbody.querySelectorAll('[data-user-toggle]').forEach((button) => {
     button.addEventListener('click', async () => {
       if (!canWrite()) {
@@ -3254,11 +3268,24 @@ function renderUsers() {
         return;
       }
 
+      const nextActive = Number(user.is_active) !== 1;
+      const confirmed = await openConfirmModal({
+        title: nextActive ? 'Enable User?' : 'Disable User?',
+        message: nextActive
+          ? `This will allow ${user.name} to sign in and use the dashboard.`
+          : `This will block ${user.name} from signing in until re-enabled.`,
+        confirmLabel: nextActive ? 'Enable' : 'Disable',
+        danger: !nextActive,
+      });
+      if (!confirmed) {
+        return;
+      }
+
       try {
         await api(`/api/admin/users/${userId}`, {
           method: 'PATCH',
           body: {
-            is_active: Number(user.is_active) !== 1,
+            is_active: nextActive,
           },
         });
 
@@ -4278,6 +4305,15 @@ async function openUserEditor(user = null) {
         value: '',
         required: !user,
         placeholder: user ? 'Leave blank to keep current password' : 'Set initial password',
+        help: 'Minimum 8 characters. Use Generate for a strong password.',
+      },
+      {
+        name: 'confirm_password',
+        label: user ? 'Confirm Password (if changed)' : 'Confirm Password',
+        type: 'password',
+        value: '',
+        required: !user,
+        placeholder: 'Re-enter password',
       },
       {
         name: 'role',
@@ -4292,10 +4328,21 @@ async function openUserEditor(user = null) {
       },
       { name: 'is_active', label: 'Active', type: 'checkbox', value: user ? Number(user.is_active) === 1 : true },
     ],
+    onReady: (formEl) => {
+      setupEditorPasswordTools(formEl, 'password', {
+        autoGenerate: !user,
+        allowGenerate: true,
+        allowCopy: true,
+        mirrorFieldName: 'confirm_password',
+      });
+      setupEditorPasswordTools(formEl, 'confirm_password', { autoGenerate: false, allowGenerate: false, allowCopy: false });
+    },
     validator: (formValues) => {
       const name = String(formValues.name || '').trim();
       const email = String(formValues.email || '').trim();
+      const emailLower = email.toLowerCase();
       const password = String(formValues.password || '');
+      const confirmPassword = String(formValues.confirm_password || '');
       const role = String(formValues.role || 'manager').toLowerCase();
 
       if (!name) {
@@ -4312,6 +4359,19 @@ async function openUserEditor(user = null) {
       }
       if (!user && !password) {
         return 'Password is required for new users.';
+      }
+      if (password && password.length < 8) {
+        return 'Password must be at least 8 characters.';
+      }
+      if (password !== confirmPassword) {
+        return 'Password and confirmation do not match.';
+      }
+      const duplicate = state.users.find((row) =>
+        String(row.email || '').toLowerCase() === emailLower
+        && Number(row.id) !== Number(user?.id || 0)
+      );
+      if (duplicate) {
+        return 'Email already exists. Use Manage on that user instead.';
       }
 
       return null;
@@ -4350,6 +4410,86 @@ async function openUserEditor(user = null) {
     if (canViewAudit()) {
       await loadAudit();
     }
+  } catch (error) {
+    toast(error.message, true);
+  }
+}
+
+async function openUserPasswordReset(user) {
+  if (!canManageAdmin()) {
+    toast('Owner access required.', true);
+    return;
+  }
+  if (!canWrite()) {
+    toast('Write access is disabled.', true);
+    return;
+  }
+
+  const values = await openEditorModal({
+    title: 'Reset User Password',
+    message: `Set a new password for ${user?.name || 'this user'}.`,
+    submitLabel: 'Update Password',
+    fields: [
+      {
+        name: 'password',
+        label: 'New Password',
+        type: 'password',
+        value: '',
+        required: true,
+        placeholder: 'Set new password',
+        help: 'Minimum 8 characters.',
+      },
+      {
+        name: 'confirm_password',
+        label: 'Confirm New Password',
+        type: 'password',
+        value: '',
+        required: true,
+        placeholder: 'Re-enter new password',
+      },
+    ],
+    onReady: (formEl) => {
+      setupEditorPasswordTools(formEl, 'password', {
+        autoGenerate: true,
+        allowGenerate: true,
+        allowCopy: true,
+        mirrorFieldName: 'confirm_password',
+      });
+      setupEditorPasswordTools(formEl, 'confirm_password', { autoGenerate: false, allowGenerate: false, allowCopy: false });
+    },
+    validator: (formValues) => {
+      const password = String(formValues.password || '');
+      const confirmPassword = String(formValues.confirm_password || '');
+      if (!password) {
+        return 'Password is required.';
+      }
+      if (password.length < 8) {
+        return 'Password must be at least 8 characters.';
+      }
+      if (password !== confirmPassword) {
+        return 'Password and confirmation do not match.';
+      }
+      return null;
+    },
+  });
+
+  if (!values) {
+    return;
+  }
+
+  try {
+    await api(`/api/admin/users/${user.id}`, {
+      method: 'PATCH',
+      body: {
+        password: String(values.password || ''),
+      },
+    });
+
+    await loadUsers();
+    if (canViewAudit()) {
+      await loadAudit();
+    }
+    toast('Password updated.');
   } catch (error) {
     toast(error.message, true);
   }
@@ -4508,6 +4648,210 @@ function formatNumber(value) {
     return '0';
   }
   return n.toLocaleString(undefined, { maximumFractionDigits: 3 });
+}
+
+function secureRandomIndex(max) {
+  const limit = Math.max(1, Number(max || 1));
+  if (typeof crypto !== 'undefined' && crypto.getRandomValues) {
+    const box = new Uint32Array(1);
+    crypto.getRandomValues(box);
+    return Number(box[0] % limit);
+  }
+  return Math.floor(Math.random() * limit);
+}
+
+function shuffleChars(chars) {
+  const list = [...chars];
+  for (let i = list.length - 1; i > 0; i -= 1) {
+    const j = secureRandomIndex(i + 1);
+    const temp = list[i];
+    list[i] = list[j];
+    list[j] = temp;
+  }
+  return list;
+}
+
+function generateStrongPassword(length = 14) {
+  const size = Math.max(10, Math.min(64, Number(length || 14)));
+  const groups = [
+    'ABCDEFGHJKLMNPQRSTUVWXYZ',
+    'abcdefghijkmnopqrstuvwxyz',
+    '23456789',
+    '!@#$%^&*_-+=',
+  ];
+  const all = groups.join('');
+  const output = groups.map((group) => group[secureRandomIndex(group.length)]);
+  while (output.length < size) {
+    output.push(all[secureRandomIndex(all.length)]);
+  }
+  return shuffleChars(output).join('');
+}
+
+async function copyText(text) {
+  const value = String(text || '');
+  if (!value) {
+    return false;
+  }
+
+  if (typeof navigator !== 'undefined' && navigator.clipboard?.writeText) {
+    try {
+      await navigator.clipboard.writeText(value);
+      return true;
+    } catch {
+      // fallback below
+    }
+  }
+
+  try {
+    const temp = document.createElement('textarea');
+    temp.value = value;
+    temp.setAttribute('readonly', 'readonly');
+    temp.style.position = 'fixed';
+    temp.style.opacity = '0';
+    temp.style.pointerEvents = 'none';
+    document.body.appendChild(temp);
+    temp.select();
+    const ok = document.execCommand('copy');
+    document.body.removeChild(temp);
+    return !!ok;
+  } catch {
+    return false;
+  }
+}
+
+function setupEditorPasswordTools(formEl, fieldName, options = {}) {
+  if (!formEl) {
+    return;
+  }
+
+  const input = formEl.querySelector(`[name="${fieldName}"]`);
+  if (!input) {
+    return;
+  }
+
+  const label = input.closest('label');
+  if (!label) {
+    return;
+  }
+
+  const allowGenerate = options.allowGenerate !== false;
+  const allowCopy = options.allowCopy !== false;
+  const autoGenerate = options.autoGenerate === true;
+  const showStrength = options.showStrength !== false;
+  const mirrorFieldName = String(options.mirrorFieldName || '').trim();
+  const mirrorInput = mirrorFieldName
+    ? formEl.querySelector(`[name="${mirrorFieldName}"]`)
+    : null;
+
+  label.classList.add('field-span-2', 'password-editor-field');
+  label.querySelectorAll('.password-tools').forEach((node) => node.remove());
+
+  const tools = document.createElement('div');
+  tools.className = 'password-tools';
+
+  const toggleBtn = document.createElement('button');
+  toggleBtn.type = 'button';
+  toggleBtn.className = 'btn ghost';
+  toggleBtn.textContent = 'Show';
+  tools.appendChild(toggleBtn);
+
+  let generateBtn = null;
+  if (allowGenerate) {
+    generateBtn = document.createElement('button');
+    generateBtn.type = 'button';
+    generateBtn.className = 'btn ghost';
+    generateBtn.textContent = 'Generate';
+    tools.appendChild(generateBtn);
+  }
+
+  let copyBtn = null;
+  if (allowCopy) {
+    copyBtn = document.createElement('button');
+    copyBtn.type = 'button';
+    copyBtn.className = 'btn ghost';
+    copyBtn.textContent = 'Copy';
+    tools.appendChild(copyBtn);
+  }
+
+  let strength = null;
+  if (showStrength) {
+    strength = document.createElement('span');
+    strength.className = 'hint password-strength';
+    tools.appendChild(strength);
+  }
+
+  const updateStrength = () => {
+    if (!strength) {
+      return;
+    }
+    const value = String(input.value || '');
+    if (!value) {
+      strength.textContent = 'No password set';
+      strength.className = 'hint password-strength';
+      return;
+    }
+    const score = [
+      value.length >= 8,
+      /[A-Z]/.test(value),
+      /[a-z]/.test(value),
+      /\d/.test(value),
+      /[^A-Za-z0-9]/.test(value),
+    ].filter(Boolean).length;
+
+    if (score <= 2) {
+      strength.textContent = 'Weak';
+      strength.className = 'hint password-strength weak';
+    } else if (score <= 4) {
+      strength.textContent = 'Medium';
+      strength.className = 'hint password-strength medium';
+    } else {
+      strength.textContent = 'Strong';
+      strength.className = 'hint password-strength strong';
+    }
+  };
+
+  toggleBtn.addEventListener('click', () => {
+    const visible = input.type === 'text';
+    input.type = visible ? 'password' : 'text';
+    toggleBtn.textContent = visible ? 'Show' : 'Hide';
+    input.focus();
+  });
+
+  if (generateBtn) {
+    generateBtn.addEventListener('click', () => {
+      input.value = generateStrongPassword(16);
+      if (mirrorInput) {
+        mirrorInput.value = input.value;
+        mirrorInput.dispatchEvent(new Event('input', { bubbles: true }));
+      }
+      input.type = 'text';
+      toggleBtn.textContent = 'Hide';
+      input.dispatchEvent(new Event('input', { bubbles: true }));
+      input.focus();
+      input.select();
+      toast('Strong password generated.');
+    });
+  }
+
+  if (copyBtn) {
+    copyBtn.addEventListener('click', async () => {
+      if (!String(input.value || '').trim()) {
+        toast('Password is empty.', true);
+        return;
+      }
+      const copied = await copyText(input.value);
+      toast(copied ? 'Password copied.' : 'Unable to copy password.', !copied);
+    });
+  }
+
+  input.addEventListener('input', updateStrength);
+  label.appendChild(tools);
+
+  if (autoGenerate && !String(input.value || '').trim() && generateBtn) {
+    generateBtn.click();
+  } else {
+    updateStrength();
+  }
 }
 
 function formatDate(value) {

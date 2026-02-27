@@ -862,6 +862,10 @@ body.sidebar-collapsed .nav-btn {
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
+.form-grid .field-span-2 {
+  grid-column: 1 / -1;
+}
+
 .settings-grid {
   grid-template-columns: repeat(3, minmax(0, 1fr));
 }
@@ -1752,6 +1756,41 @@ details meta-details,
 
 .editor-modal-card .inline-check {
   margin-top: 4px;
+}
+
+.password-editor-field input {
+  min-height: 38px;
+}
+
+.password-tools {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin-top: 2px;
+}
+
+.password-tools .btn {
+  padding: 4px 10px;
+  border-radius: 8px;
+  font-size: 12px;
+}
+
+.password-strength {
+  margin-left: auto;
+  font-weight: 700;
+}
+
+.password-strength.weak {
+  color: var(--danger);
+}
+
+.password-strength.medium {
+  color: var(--warn);
+}
+
+.password-strength.strong {
+  color: var(--ok);
 }
 
 .app-modal-actions {
