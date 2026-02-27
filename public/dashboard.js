@@ -1540,6 +1540,32 @@ function wireEvents() {
     openItemEditor().catch((error) => toast(error.message, true));
   });
 
+  byId('items-refresh').addEventListener('click', async () => {
+    try {
+      await loadMeta();
+      toast('Items refreshed.');
+    } catch (error) {
+      toast(error.message, true);
+    }
+  });
+  byId('items-search').addEventListener('input', debounce(() => {
+    state.tables.items.page = 1;
+    renderItems();
+  }, 250));
+  byId('items-category-filter').addEventListener('change', () => {
+    state.tables.items.page = 1;
+    renderItems();
+  });
+  byId('items-status-filter').addEventListener('change', () => {
+    state.tables.items.page = 1;
+    renderItems();
+  });
+  byId('items-page-size').addEventListener('change', () => {
+    state.tables.items.page = 1;
+    state.tables.items.pageSize = Number(byId('items-page-size').value || 25);
+    renderItems();
+  });
+
   byId('movement-form').addEventListener('submit', onApplyMovement);
   byId('move-type').addEventListener('change', updateMovementFields);
   ['move-item', 'move-from', 'move-to'].forEach((id) => {
@@ -1883,10 +1909,14 @@ async function loadMeta() {
   state.tables.docs.pageSize = pageSize;
   byId('levels-page-size').value = String(pageSize);
   byId('movements-page-size').value = String(Math.max(20, pageSize));
+  if (byId('items-page-size')) {
+    byId('items-page-size').value = String(pageSize);
+  }
 
   hydrateSettingsForm();
   renderMovementOptions();
   renderAreaFilter();
+  renderItemsCategoryFilter();
   syncLevelsModeUI();
   renderAreas();
   renderItems();
@@ -2530,6 +2560,30 @@ function renderAreaFilter() {
   }
 }
 
+function renderItemsCategoryFilter() {
+  const filter = byId('items-category-filter');
+  if (!filter) {
+    return;
+  }
+
+  const selected = String(filter.value || '');
+  const categories = Array.from(
+    new Set(
+      state.items
+        .map((item) => String(item.category || '').trim())
+        .filter((category) => category.length > 0)
+    )
+  ).sort((a, b) => a.localeCompare(b, undefined, { sensitivity: 'base' }));
+
+  const options = ['<option value="">All Categories</option>']
+    .concat(categories.map((category) => `<option value="${escapeHtml(category)}">${escapeHtml(category)}</option>`));
+
+  filter.innerHTML = options.join('');
+  if (selected && categories.includes(selected)) {
+    filter.value = selected;
+  }
+}
+
 function renderAreas() {
   const tableState = state.tables.areas;
   const tbody = byId('areas-table');
@@ -2615,12 +2669,56 @@ function renderItems() {
   const tableState = state.tables.items;
   const tbody = byId('items-table');
   tbody.innerHTML = '';
-  const source = applySorting(state.items, tableState.sortKey, tableState.sortDir);
+  renderItemsCategoryFilter();
+
+  const search = String(byId('items-search')?.value || '').trim().toLowerCase();
+  const categoryFilter = String(byId('items-category-filter')?.value || '').trim();
+  const statusFilter = String(byId('items-status-filter')?.value || '').trim().toLowerCase();
+
+  const totalItems = state.items.length;
+  const activeItems = state.items.filter((row) => Number(row.is_active) === 1).length;
+  const inactiveItems = Math.max(0, totalItems - activeItems);
+  const totalBadge = byId('items-total-badge');
+  const activeBadge = byId('items-active-badge');
+  const inactiveBadge = byId('items-inactive-badge');
+  if (totalBadge) totalBadge.textContent = `Items: ${formatNumber(totalItems)}`;
+  if (activeBadge) activeBadge.textContent = `Active: ${formatNumber(activeItems)}`;
+  if (inactiveBadge) inactiveBadge.textContent = `Inactive: ${formatNumber(inactiveItems)}`;
+
+  const filtered = state.items.filter((item) => {
+    const isActive = Number(item.is_active) === 1;
+    if (statusFilter === 'active' && !isActive) {
+      return false;
+    }
+    if (statusFilter === 'inactive' && isActive) {
+      return false;
+    }
+    if (categoryFilter && String(item.category || '').trim() !== categoryFilter) {
+      return false;
+    }
+    if (search) {
+      const haystack = [
+        item.sku,
+        item.name,
+        item.category,
+        item.unit,
+        item.notes,
+      ]
+        .map((part) => String(part || '').toLowerCase())
+        .join(' ');
+      if (!haystack.includes(search)) {
+        return false;
+      }
+    }
+    return true;
+  });
+
+  const source = applySorting(filtered, tableState.sortKey, tableState.sortDir);
   const page = paginate(source, tableState.page, tableState.pageSize);
   tableState.page = page.page;
 
   if (!page.rows.length) {
-    tbody.innerHTML = '<tr><td colspan="8">No items found.</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="7">No items match this filter.</td></tr>';
     renderPager('items-pager', 'items', page.totalRows, page.totalPages);
     return;
   }
@@ -2629,19 +2727,29 @@ function renderItems() {
   for (const item of page.rows) {
     const active = Number(item.is_active) === 1;
     const onGroundQty = onGroundArea ? onGroundQuantityForItem(item.id) : null;
+    const unitLabel = escapeHtml(item.unit || 'unit');
+    const noteLabel = String(item.notes || '').trim() ? escapeHtml(item.notes) : `Unit: ${unitLabel}`;
+    const onGroundLabel = onGroundArea ? (onGroundQty === null ? '-' : `${formatNumber(onGroundQty)} ${unitLabel}`) : '-';
     const tr = document.createElement('tr');
     tr.innerHTML = `
-      <td>${itemAvatarHtml(item.name, item.image_path)}</td>
+      <td>
+        <div class="product-cell">
+          ${itemAvatarHtml(item.name, item.image_path)}
+          <div class="product-meta">
+            <strong class="product-title">${escapeHtml(item.name)}</strong>
+            <span class="product-sub">${noteLabel}</span>
+          </div>
+        </div>
+      </td>
       <td>${escapeHtml(item.sku)}</td>
-      <td>${escapeHtml(item.name)}</td>
       <td>${escapeHtml(item.category || '-')}</td>
-      <td>${formatNumber(item.reorder_level)}</td>
-      <td>${onGroundArea ? (onGroundQty === null ? '-' : `${formatNumber(onGroundQty)} ${escapeHtml(item.unit || 'unit')}`) : '-'}</td>
+      <td><span class="metric-pill">${formatNumber(item.reorder_level)}</span></td>
+      <td><span class="qty-pill">${onGroundLabel}</span></td>
       <td><span class="status-pill ${active ? 'in' : 'out'}">${active ? 'Active' : 'Inactive'}</span></td>
       <td>
         <div class="actions">
-          <button class="btn ghost table-btn action-edit" data-item-edit="${item.id}" ${canWrite() ? '' : 'disabled'}>Edit</button>
-          <button class="btn danger table-btn action-delete" data-item-del="${item.id}" ${canWrite() ? '' : 'disabled'}>Trash</button>
+          <button class="btn ghost table-btn action-edit" data-item-edit="${item.id}" ${canWrite() ? '' : 'disabled'}><i class="fa-solid fa-pen"></i> Edit</button>
+          <button class="btn danger table-btn action-delete" data-item-del="${item.id}" ${canWrite() ? '' : 'disabled'}><i class="fa-solid fa-trash"></i> Trash</button>
         </div>
       </td>
     `;
@@ -4345,6 +4453,7 @@ function syncGlobalSearch(view) {
     overview: byId('levels-search').value,
     inventory: byId('levels-search').value,
     movements: byId('movements-search').value,
+    items: byId('items-search')?.value || '',
     admin: byId('users-search').value,
     trash: byId('trash-search').value,
     audit: byId('audit-search').value,
@@ -4365,6 +4474,13 @@ function applyGlobalSearch() {
   if (state.view === 'movements') {
     byId('movements-search').value = value;
     loadMovements().catch((error) => toast(error.message, true));
+    return;
+  }
+
+  if (state.view === 'items') {
+    byId('items-search').value = value;
+    state.tables.items.page = 1;
+    renderItems();
     return;
   }
 

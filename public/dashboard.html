@@ -365,25 +365,48 @@
         </section>
 
         <section class="view" data-view-panel="items">
-          <article class="entity-surface">
+          <article class="entity-surface items-surface">
             <div class="entity-head">
               <div>
-                <h3>Item Directory</h3>
-                <p class="hint">Manage product SKUs, categories, units, and reorder points.</p>
+                <h3>Products</h3>
+                <p class="hint">Manage SKUs, units, reorder points, and active catalog status.</p>
               </div>
               <div class="actions">
-                <span class="badge">SKUs</span>
+                <span class="badge" id="items-total-badge">Items: 0</span>
+                <span class="badge good" id="items-active-badge">Active: 0</span>
+                <span class="badge" id="items-inactive-badge">Inactive: 0</span>
                 <button class="btn primary" id="items-add-btn" type="button"><i class="fa-solid fa-plus"></i> Add Item</button>
               </div>
             </div>
             <div class="table-headline">
               <strong>Item Directory</strong>
-              <span class="hint">Use edit for quick updates, image upload, and on-ground stock sync.</span>
+              <span class="hint">Use filters to quickly find SKUs and update records.</span>
+            </div>
+            <div class="items-table-toolbar">
+              <label class="input-inline items-search">
+                <i class="fa-solid fa-magnifying-glass"></i>
+                <input id="items-search" placeholder="Search name, SKU, category, unit, note" />
+              </label>
+              <select id="items-category-filter">
+                <option value="">All Categories</option>
+              </select>
+              <select id="items-status-filter">
+                <option value="">All Status</option>
+                <option value="active">Active</option>
+                <option value="inactive">Inactive</option>
+              </select>
+              <select id="items-page-size">
+                <option value="10">10</option>
+                <option value="25" selected>25</option>
+                <option value="50">50</option>
+                <option value="100">100</option>
+              </select>
+              <button class="btn ghost" id="items-refresh" type="button">Refresh</button>
             </div>
             <div class="table-wrap tall catalog-table-wrap">
               <table class="catalog-table">
                 <thead>
-                  <tr><th>Image</th><th>SKU</th><th>Name</th><th>Category</th><th>Reorder</th><th>On Ground</th><th>Status</th><th>Actions</th></tr>
+                  <tr><th>Product</th><th>SKU</th><th>Category</th><th>Reorder</th><th>On Ground</th><th>Status</th><th>Actions</th></tr>
                 </thead>
                 <tbody id="items-table"></tbody>
               </table>
